@@ -5,5 +5,9 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
+  },
+  "vars": {
+    "META_BASE_URL": "https://api.meta.ai/v1",
+    "META_MODEL": "muse-spark-1.3"
   }
 }
