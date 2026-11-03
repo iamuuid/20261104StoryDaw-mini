@@ -7,11 +7,16 @@ import type {
   Language,
 } from '../../src/types';
 
-// Cloudflare Pages Functions の環境変数インターフェース
+// Cloudflare Workers / Pages Functions 共通の環境変数・バインディング型定義
+export interface AssetsBinding {
+  fetch(request: Request | string): Promise<Response>;
+}
+
 export interface Env {
   META_API_KEY?: string;
   META_BASE_URL?: string;
   META_MODEL?: string;
+  ASSETS?: AssetsBinding;
 }
 
 interface GenerateRequestBody {
@@ -20,36 +25,37 @@ interface GenerateRequestBody {
   lang?: Language;
 }
 
-// Meta Model API (/responses) のレスポンスオブジェクトからテキスト本文を安全に抽出するヘルパー関数
-function extractResponseText(data: unknown): string {
+// Meta Model API (/v1/responses) のレスポンスJSONから安全にテキスト本文を抽出するヘルパー関数
+// data.output_text, data.output?.[0]?.content?.[0]?.text, data.choices?.[0]?.message?.content 等すべてに対応
+export function extractResponseText(data: unknown): string {
   if (!data || typeof data !== 'object') return '';
   const obj = data as Record<string, unknown>;
 
-  // 1. トップレベルの output_text フィールド (Responses API 標準)
+  // 1. data.output_text (Responses API のトップレベルテキスト)
   if (typeof obj.output_text === 'string' && obj.output_text.trim()) {
     return obj.output_text;
   }
 
-  // 2. output 配列 (例: [{ role: "assistant", content: [{ type: "output_text", text: "..." }] }] 等)
+  // 2. data.output 配列 (data.output?.[0]?.content?.[0]?.text 等)
   if (Array.isArray(obj.output)) {
     const collected: string[] = [];
     for (const item of obj.output) {
       if (!item || typeof item !== 'object') continue;
       const itemObj = item as Record<string, unknown>;
 
-      if (typeof itemObj.text === 'string') {
+      if (typeof itemObj.text === 'string' && itemObj.text.trim()) {
         collected.push(itemObj.text);
-      } else if (typeof itemObj.content === 'string') {
+      } else if (typeof itemObj.content === 'string' && itemObj.content.trim()) {
         collected.push(itemObj.content);
       } else if (Array.isArray(itemObj.content)) {
         for (const part of itemObj.content) {
-          if (typeof part === 'string') {
+          if (typeof part === 'string' && part.trim()) {
             collected.push(part);
           } else if (part && typeof part === 'object') {
             const partObj = part as Record<string, unknown>;
-            if (typeof partObj.text === 'string') {
+            if (typeof partObj.text === 'string' && partObj.text.trim()) {
               collected.push(partObj.text);
-            } else if (typeof partObj.content === 'string') {
+            } else if (typeof partObj.content === 'string' && partObj.content.trim()) {
               collected.push(partObj.content);
             }
           }
@@ -61,29 +67,30 @@ function extractResponseText(data: unknown): string {
     }
   }
 
-  // 3. output が単一オブジェクトや文字列の場合
+  // 3. data.output が文字列の場合
   if (typeof obj.output === 'string' && obj.output.trim()) {
     return obj.output;
   }
 
-  // 4. 互換用フォールバック (choices / completion_message)
+  // 4. data.choices?.[0]?.message?.content (OpenAI Chat Completions 互換)
   if (Array.isArray(obj.choices) && obj.choices.length > 0) {
     const firstChoice = obj.choices[0] as Record<string, unknown>;
     const msg = firstChoice?.message as Record<string, unknown> | undefined;
-    if (msg && typeof msg.content === 'string') {
+    if (msg && typeof msg.content === 'string' && msg.content.trim()) {
       return msg.content;
     }
-    if (typeof firstChoice?.text === 'string') {
+    if (typeof firstChoice?.text === 'string' && firstChoice.text.trim()) {
       return firstChoice.text;
     }
   }
 
+  // 5. data.completion_message?.content (Llama API 互換)
   if (obj.completion_message && typeof obj.completion_message === 'object') {
     const comp = obj.completion_message as Record<string, unknown>;
-    if (typeof comp.content === 'string') return comp.content;
+    if (typeof comp.content === 'string' && comp.content.trim()) return comp.content;
     if (comp.content && typeof comp.content === 'object') {
       const contentObj = comp.content as Record<string, unknown>;
-      if (typeof contentObj.text === 'string') return contentObj.text;
+      if (typeof contentObj.text === 'string' && contentObj.text.trim()) return contentObj.text;
     }
   }
 
@@ -91,7 +98,7 @@ function extractResponseText(data: unknown): string {
 }
 
 // Markdownコードブロック（```json ... ```）が含まれていても安全にJSONを抽出・パースするラッパー関数
-function parseSafeJson(rawContent: string): StoryboardResult {
+export function parseSafeJson(rawContent: string): StoryboardResult {
   const trimmed = rawContent.trim();
   // ```json ... ``` または ``` ... ``` を除去
   const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -112,7 +119,7 @@ function parseSafeJson(rawContent: string): StoryboardResult {
 
 // META_API_KEY 未設定時やローカル検証時に、入力された WorldLock と各ブロックの Tension (0-100) / Event / Pages / 言語設定(lang) に応じて
 // 動的にネーム指示書を組み立てるフォールバック生成関数
-function buildDynamicMockStoryboard(
+export function buildDynamicMockStoryboard(
   worldLock: WorldLock,
   blocks: StoryBlock[],
   lang: Language = 'en'
@@ -525,7 +532,7 @@ function buildDynamicMockStoryboard(
 }
 
 // システムプロンプトの構築（WorldLock厳守・Tension別演出ルール・言語指定・純粋JSON出力指定）
-function buildSystemPrompt(lang: Language = 'en'): string {
+export function buildSystemPrompt(lang: Language = 'en'): string {
   const languageDirective =
     lang === 'ja'
       ? `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in natural, vivid JAPANESE suitable for a professional manga storyboard ("漫画のネーム指示書"). Keep JSON keys and enum values ("blockType", "size", "type") in exact English as specified in the schema.`
@@ -612,7 +619,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       });
     }
 
-    const baseUrl = (context.env.META_BASE_URL || 'https://api.llama.com/v1').replace(/\/+$/, '');
+    // 公式cURL仕様: デフォルト baseUrl = https://api.meta.ai/v1, デフォルト model = muse-spark-1.3
+    const baseUrl = (context.env.META_BASE_URL || 'https://api.meta.ai/v1').replace(/\/+$/, '');
     const model = context.env.META_MODEL || 'muse-spark-1.3';
 
     const userPrompt = JSON.stringify(
@@ -634,7 +642,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       2
     );
 
-    // Meta Model API (Muse Spark 1.3) 公式仕様: POST ${META_BASE_URL}/responses
+    // Meta Model API (Muse Spark 1.3) 公式仕様: POST ${baseUrl}/responses (非ストリーミングJSON)
     const response = await fetch(`${baseUrl}/responses`, {
       method: 'POST',
       headers: {
@@ -655,7 +663,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
             } for the following WorldLock and Ki-Sho-Ten-Ketsu blocks:\n${userPrompt}`,
           },
         ],
-        temperature: 1,
+        temperature: 0.7,
         max_output_tokens: 4096,
       }),
     });

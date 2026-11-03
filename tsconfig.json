@@ -15,5 +15,6 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "functions"]
+  "include": ["src", "functions", "worker.ts"],
+  "exclude": ["node_modules", "dist"]
 }
