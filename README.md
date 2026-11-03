@@ -1,6 +1,6 @@
 # StoryDAW Mini
 
-**Visual Story Structure & Text-Only Manga Storyboard Designer powered by Meta Muse (`muse-spark`)**
+**Visual Story Structure & Text-Only Manga Storyboard Designer powered by Meta Muse (`muse-spark-1.3`)**
 
 StoryDAW Mini is a single-screen, DAW-inspired (Digital Audio Workstation) blueprint application designed for manga and comic creators. Instead of generating black-box AI images that override an artist's visual style, StoryDAW Mini treats **dramatic tension as an automation curve**—allowing creators to visually lock their world setting and character constants (**World Lock**), sculpt a 4-track **Ki-Sho-Ten-Ketsu** narrative timeline with real-time **Tension (0–100)** sliders, and generate structured, text-only manga storyboard briefs (**"Name" / ネーム指示書**) with panel sizes, camera angles, blocking directions, and dialogue.
 
@@ -19,7 +19,7 @@ Manga and webtoon creators face a critical bottleneck not in drawing itself, but
 
 ## ⚡ How Meta Muse API Drives Tension-Aware Storyboarding
 
-When the creator clicks **Generate Storyboard Brief (Meta Muse API)**, the Cloudflare Pages Function (`POST /api/generate`) sends the locked `WorldLock` constants and the ordered `StoryBlock[]` tracks to the **Meta Model API (`muse-spark`)** via its OpenAI-compatible `/chat/completions` endpoint.
+When the creator clicks **Generate Storyboard Brief (Meta Muse API)**, the Cloudflare Pages Function (`POST /api/generate`) sends the locked `WorldLock` constants and the ordered `StoryBlock[]` tracks to the **Meta Model API (`muse-spark-1.3`)** via its `/responses` endpoint (`input: [{ role: 'system', ... }, { role: 'user', ... }]`, `temperature: 1`, `max_output_tokens: 4096`).
 
 The system prompt enforces strict directorial rules that translate numerical **Tension (`0–100`)** into concrete manga cinematography:
 
@@ -76,7 +76,7 @@ Copy `.dev.vars.example` to `.dev.vars` and set your Meta API credentials:
 ```ini
 META_API_KEY=your_api_key_here
 META_BASE_URL=https://api.llama.com/v1
-META_MODEL=muse-spark
+META_MODEL=muse-spark-1.3
 ```
 *(Note: Even without `.dev.vars`, the app works out-of-the-box using the built-in Dynamic Tension Fallback Engine so judges can test the full Tension Slider → Regenerate → Before/After Diff workflow immediately.)*
 

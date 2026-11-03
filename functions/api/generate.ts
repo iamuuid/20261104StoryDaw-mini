@@ -20,6 +20,76 @@ interface GenerateRequestBody {
   lang?: Language;
 }
 
+// Meta Model API (/responses) のレスポンスオブジェクトからテキスト本文を安全に抽出するヘルパー関数
+function extractResponseText(data: unknown): string {
+  if (!data || typeof data !== 'object') return '';
+  const obj = data as Record<string, unknown>;
+
+  // 1. トップレベルの output_text フィールド (Responses API 標準)
+  if (typeof obj.output_text === 'string' && obj.output_text.trim()) {
+    return obj.output_text;
+  }
+
+  // 2. output 配列 (例: [{ role: "assistant", content: [{ type: "output_text", text: "..." }] }] 等)
+  if (Array.isArray(obj.output)) {
+    const collected: string[] = [];
+    for (const item of obj.output) {
+      if (!item || typeof item !== 'object') continue;
+      const itemObj = item as Record<string, unknown>;
+
+      if (typeof itemObj.text === 'string') {
+        collected.push(itemObj.text);
+      } else if (typeof itemObj.content === 'string') {
+        collected.push(itemObj.content);
+      } else if (Array.isArray(itemObj.content)) {
+        for (const part of itemObj.content) {
+          if (typeof part === 'string') {
+            collected.push(part);
+          } else if (part && typeof part === 'object') {
+            const partObj = part as Record<string, unknown>;
+            if (typeof partObj.text === 'string') {
+              collected.push(partObj.text);
+            } else if (typeof partObj.content === 'string') {
+              collected.push(partObj.content);
+            }
+          }
+        }
+      }
+    }
+    if (collected.length > 0) {
+      return collected.join('\n');
+    }
+  }
+
+  // 3. output が単一オブジェクトや文字列の場合
+  if (typeof obj.output === 'string' && obj.output.trim()) {
+    return obj.output;
+  }
+
+  // 4. 互換用フォールバック (choices / completion_message)
+  if (Array.isArray(obj.choices) && obj.choices.length > 0) {
+    const firstChoice = obj.choices[0] as Record<string, unknown>;
+    const msg = firstChoice?.message as Record<string, unknown> | undefined;
+    if (msg && typeof msg.content === 'string') {
+      return msg.content;
+    }
+    if (typeof firstChoice?.text === 'string') {
+      return firstChoice.text;
+    }
+  }
+
+  if (obj.completion_message && typeof obj.completion_message === 'object') {
+    const comp = obj.completion_message as Record<string, unknown>;
+    if (typeof comp.content === 'string') return comp.content;
+    if (comp.content && typeof comp.content === 'object') {
+      const contentObj = comp.content as Record<string, unknown>;
+      if (typeof contentObj.text === 'string') return contentObj.text;
+    }
+  }
+
+  return '';
+}
+
 // Markdownコードブロック（```json ... ```）が含まれていても安全にJSONを抽出・パースするラッパー関数
 function parseSafeJson(rawContent: string): StoryboardResult {
   const trimmed = rawContent.trim();
@@ -543,7 +613,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     }
 
     const baseUrl = (context.env.META_BASE_URL || 'https://api.llama.com/v1').replace(/\/+$/, '');
-    const model = context.env.META_MODEL || 'muse-spark';
+    const model = context.env.META_MODEL || 'muse-spark-1.3';
 
     const userPrompt = JSON.stringify(
       {
@@ -564,17 +634,20 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       2
     );
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    // Meta Model API (Muse Spark 1.3) 公式仕様: POST ${META_BASE_URL}/responses
+    const response = await fetch(`${baseUrl}/responses`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model,
-        temperature: 0.4,
-        messages: [
-          { role: 'system', content: buildSystemPrompt(lang) },
+        input: [
+          {
+            role: 'system',
+            content: buildSystemPrompt(lang),
+          },
           {
             role: 'user',
             content: `Generate the complete StoryboardResult JSON in ${
@@ -582,6 +655,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
             } for the following WorldLock and Ki-Sho-Ten-Ketsu blocks:\n${userPrompt}`,
           },
         ],
+        temperature: 1,
+        max_output_tokens: 4096,
       }),
     });
 
@@ -598,18 +673,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       });
     }
 
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      completion_message?: { content?: { text?: string } | string };
-    };
+    const data = await response.json();
+    const rawText = extractResponseText(data);
 
-    // OpenAI互換フォーマットおよびLlama APIネイティブフォーマットの両方に対応
-    let rawText = data.choices?.[0]?.message?.content || '';
-    if (!rawText && data.completion_message?.content) {
-      rawText =
-        typeof data.completion_message.content === 'string'
-          ? data.completion_message.content
-          : data.completion_message.content.text || '';
+    if (!rawText) {
+      throw new Error('Empty response text from Meta Model API /responses endpoint.');
     }
 
     const parsed = parseSafeJson(rawText);
