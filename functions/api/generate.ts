@@ -97,24 +97,242 @@ export function extractResponseText(data: unknown): string {
   return '';
 }
 
-// Markdownコードブロック（```json ... ```）が含まれていても安全にJSONを抽出・パースするラッパー関数
-export function parseSafeJson(rawContent: string): StoryboardResult {
-  const trimmed = rawContent.trim();
-  // ```json ... ``` または ``` ... ``` を除去
-  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = codeBlockMatch ? codeBlockMatch[1].trim() : trimmed;
+// Markdownのコードブロック記号（```json や ```）を末尾切れの場合も含めて確実に除去し、最初の { から切り出す関数
+function stripCodeFencesAndExtractJsonObject(raw: string): string {
+  let cleaned = raw.trim();
 
-  try {
-    return JSON.parse(candidate) as StoryboardResult;
-  } catch {
-    // 万が一前後に説明文が付いていた場合、最初の { から最後の } までを切り出して再試行
-    const firstBrace = candidate.indexOf('{');
-    const lastBrace = candidate.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      return JSON.parse(candidate.slice(firstBrace, lastBrace + 1)) as StoryboardResult;
-    }
-    throw new Error('Failed to parse JSON response from model.');
+  // 完全な ```json ... ``` ブロックがあれば中身を取り出す
+  const fullBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fullBlockMatch) {
+    cleaned = fullBlockMatch[1].trim();
+  } else {
+    // 出力が途中で切れて閉じの ``` が無い場合でも先頭・末尾のフェンスを確実に除去
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   }
+
+  // 最初の { 以降を抽出
+  const firstBrace = cleaned.indexOf('{');
+  if (firstBrace !== -1) {
+    cleaned = cleaned.slice(firstBrace);
+  }
+
+  return cleaned;
+}
+
+// JSON文字列内の未エスケープ改行・制御文字をサニタイズし、閉じ括弧前の末尾カンマを除去する関数
+function sanitizeJsonStringLiterals(input: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      result += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+    if (inString) {
+      if (ch === '\n') {
+        result += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        continue;
+      }
+      if (ch === '\t') {
+        result += '\\t';
+        continue;
+      }
+    }
+    result += ch;
+  }
+
+  // 閉じ括弧の直前にある不正なカンマ (", }" や ", ]") を除去
+  return result.replace(/,\s*([}\]])/g, '$1');
+}
+
+// 途中で切れたJSON文字列に対して、開いたままの引用符・オブジェクト・配列（", }, ]）を補完して修復する関数
+function closeOpenJsonStructures(fragment: string): string {
+  let text = fragment.trim();
+
+  // 末尾がエスケープ用のバックスラッシュ単体で終わっている場合は除去
+  if (text.endsWith('\\') && !text.endsWith('\\\\')) {
+    text = text.slice(0, -1);
+  }
+
+  let inString = false;
+  let escaped = false;
+  const stack: Array<'}' | ']'> = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (ch === '{') {
+        stack.push('}');
+      } else if (ch === '[') {
+        stack.push(']');
+      } else if (ch === '}' || ch === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === ch) {
+          stack.pop();
+        }
+      }
+    }
+  }
+
+  // 文字列リテラルの途中で切れている場合はまず引用符を閉じる
+  if (inString) {
+    text += '"';
+  }
+
+  // 末尾が不完全なキーやコロン、カンマで終わっている場合を整理
+  // 例: `..., "composition":` -> ダミー空文字 `""` を補う
+  if (/:\s*$/.test(text)) {
+    text += '""';
+  }
+  // 例: `..., "compo"` のようにコロン前のキー単体で切れている場合はその未完キーごと削る
+  text = text.replace(/,\s*"[^"]*"\s*$/, '');
+  // 末尾の余分なカンマを除去
+  text = text.replace(/,\s*$/, '');
+
+  // スタックに残っている未閉鎖の括弧を逆順にすべて閉じる
+  while (stack.length > 0) {
+    text += stack.pop();
+  }
+
+  return sanitizeJsonStringLiterals(text);
+}
+
+// 取得したStoryboardResultの必須フィールドを検証・補完してフロントでクラッシュしない形に整える関数
+function normalizeStoryboardResult(raw: unknown): StoryboardResult | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  if (!Array.isArray(obj.pages) || obj.pages.length === 0) return null;
+
+  const validBlockTypes = new Set(['ki', 'sho', 'ten', 'ketsu']);
+  const validSizes = new Set(['large', 'medium', 'small', 'wide']);
+  const validDlgTypes = new Set(['speech', 'monologue', 'sfx']);
+
+  const pages: PageBrief[] = obj.pages
+    .filter((p): p is Record<string, unknown> => Boolean(p && typeof p === 'object'))
+    .map((p, idx) => {
+      const rawBlockType = String(p.blockType || 'ki').toLowerCase();
+      const blockType = (validBlockTypes.has(rawBlockType) ? rawBlockType : 'ki') as PageBrief['blockType'];
+      const rawPanels = Array.isArray(p.panels) ? p.panels : [];
+
+      const panels: PanelBrief[] = rawPanels
+        .filter((pn): pn is Record<string, unknown> => Boolean(pn && typeof pn === 'object'))
+        .map((pn, pnIdx) => {
+          const rawSize = String(pn.size || 'medium').toLowerCase();
+          const size = (validSizes.has(rawSize) ? rawSize : 'medium') as PanelBrief['size'];
+          const rawDialogues = Array.isArray(pn.dialogues) ? pn.dialogues : [];
+
+          const dialogues = rawDialogues
+            .filter((d): d is Record<string, unknown> => Boolean(d && typeof d === 'object'))
+            .map((d) => {
+              const rawType = String(d.type || 'speech').toLowerCase();
+              return {
+                character: String(d.character || 'Character'),
+                type: (validDlgTypes.has(rawType) ? rawType : 'speech') as
+                  | 'speech'
+                  | 'monologue'
+                  | 'sfx',
+                text: String(d.text || ''),
+              };
+            });
+
+          return {
+            panelNumber: Number(pn.panelNumber) || pnIdx + 1,
+            size,
+            camera: String(pn.camera || 'Medium shot / Eye-level'),
+            composition: String(pn.composition || ''),
+            dialogues,
+          };
+        });
+
+      return {
+        pageNumber: Number(p.pageNumber) || idx + 1,
+        blockType,
+        appliedTension:
+          typeof p.appliedTension === 'number' ? p.appliedTension : Number(p.appliedTension) || 50,
+        pageSummary: String(p.pageSummary || ''),
+        panels:
+          panels.length > 0
+            ? panels
+            : [
+                {
+                  panelNumber: 1,
+                  size: 'medium',
+                  camera: 'Medium shot / Eye-level',
+                  composition: String(p.pageSummary || 'Scene panel'),
+                  dialogues: [],
+                },
+              ],
+      };
+    });
+
+  return pages.length > 0 ? { pages } : null;
+}
+
+// Markdown除去・サニタイズ・末尾切れリペアを組み合わせて安全にJSONをパースする関数
+export function parseSafeJson(rawContent: string): StoryboardResult {
+  const extracted = stripCodeFencesAndExtractJsonObject(rawContent);
+  const sanitized = sanitizeJsonStringLiterals(extracted);
+
+  // 1. まずはそのまま（または最後の } までで）パースを試行
+  const candidates: string[] = [sanitized];
+  const lastBrace = sanitized.lastIndexOf('}');
+  if (lastBrace > 0 && lastBrace < sanitized.length - 1) {
+    candidates.push(sanitized.slice(0, lastBrace + 1));
+  }
+
+  // 2. 末尾切れ補完リペア版を追加
+  candidates.push(closeOpenJsonStructures(sanitized));
+
+  // 3. 途中で配列要素が壊れている場合に備え、後ろの `}` から段階的に巻き戻してリペアを試行
+  let searchPos = sanitized.length;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const prevCloseBrace = sanitized.lastIndexOf('}', searchPos - 1);
+    if (prevCloseBrace <= 0) break;
+    candidates.push(closeOpenJsonStructures(sanitized.slice(0, prevCloseBrace + 1)));
+    searchPos = prevCloseBrace;
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      const normalized = normalizeStoryboardResult(parsed);
+      if (normalized) {
+        return normalized;
+      }
+    } catch {
+      // 次の修復候補を試行
+    }
+  }
+
+  throw new Error('Unable to parse or repair JSON response from model.');
 }
 
 // META_API_KEY 未設定時やローカル検証時に、入力された WorldLock と各ブロックの Tension (0-100) / Event / Pages / 言語設定(lang) に応じて
@@ -535,8 +753,8 @@ export function buildDynamicMockStoryboard(
 export function buildSystemPrompt(lang: Language = 'en'): string {
   const languageDirective =
     lang === 'ja'
-      ? `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in natural, vivid JAPANESE suitable for a professional manga storyboard ("漫画のネーム指示書"). Keep JSON keys and enum values ("blockType", "size", "type") in exact English as specified in the schema.`
-      : `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in clear, vivid ENGLISH.`;
+      ? `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in natural, concise JAPANESE suitable for a professional manga storyboard ("漫画のネーム指示書"). Keep each composition description concise (1-2 sentences) so the entire JSON fits well within token limits. Keep JSON keys and enum values ("blockType", "size", "type") in exact English as specified in the schema.`
+      : `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in clear, concise ENGLISH (1-2 sentences per panel composition).`;
 
   return `You are a professional manga storyboard director ("Name" / ネーム architect) for StoryDAW Mini.
 Your job is to generate a structured, text-only manga storyboard brief in pure JSON format based on the user's "WorldLock" (fixed world & character constants) and "Ki-Sho-Ten-Ketsu" story blocks with specific "tension" parameters (0 to 100).
@@ -589,21 +807,34 @@ SCHEMA:
 }
 
 export const onRequestPost = async (context: { request: Request; env: Env }): Promise<Response> => {
+  let parsedBody: GenerateRequestBody | null = null;
+
   try {
-    const body = (await context.request.json()) as GenerateRequestBody;
-    const { worldLock, blocks } = body;
-    const lang: Language = body.lang === 'ja' ? 'ja' : 'en';
+    parsedBody = (await context.request.json()) as GenerateRequestBody;
+  } catch {
+    return new Response(
+      JSON.stringify({ error: 'Invalid JSON request body.' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
 
-    if (!worldLock || !Array.isArray(blocks) || blocks.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request payload: worldLock and blocks are required.' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-    }
+  const { worldLock, blocks } = parsedBody;
+  const lang: Language = parsedBody.lang === 'ja' ? 'ja' : 'en';
 
+  if (!worldLock || !Array.isArray(blocks) || blocks.length === 0) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid request payload: worldLock and blocks are required.' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  try {
     const apiKey = context.env?.META_API_KEY?.trim();
     const hasValidApiKey = Boolean(apiKey && apiKey !== 'your_api_key_here');
 
@@ -642,7 +873,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       2
     );
 
-    // Meta Model API (Muse Spark 1.3) 公式仕様: POST ${baseUrl}/responses (非ストリーミングJSON)
+    // Meta Model API (Muse Spark 1.3) 公式仕様: POST ${baseUrl}/responses (非ストリーミングJSON, max_output_tokens: 16384)
     const response = await fetch(`${baseUrl}/responses`, {
       method: 'POST',
       headers: {
@@ -664,7 +895,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
           },
         ],
         temperature: 0.7,
-        max_output_tokens: 4096,
+        max_output_tokens: 16384,
       }),
     });
 
@@ -677,6 +908,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
         headers: {
           'Content-Type': 'application/json',
           'X-StoryDAW-Mode': 'fallback-after-api-error',
+          'X-StoryDAW-Error': encodeURIComponent(`API status ${response.status}`),
         },
       });
     }
@@ -685,22 +917,52 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     const rawText = extractResponseText(data);
 
     if (!rawText) {
-      throw new Error('Empty response text from Meta Model API /responses endpoint.');
+      console.error('Empty response text from Meta Model API /responses endpoint.');
+      const fallbackResult = buildDynamicMockStoryboard(worldLock, blocks, lang);
+      return new Response(JSON.stringify(fallbackResult), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-StoryDAW-Mode': 'fallback-after-empty-response',
+        },
+      });
     }
 
-    const parsed = parseSafeJson(rawText);
-    return new Response(JSON.stringify(parsed), {
+    // JSONパース＆自動リペアを試行し、万一修復不可能な場合でも500で停止させずフォールバックを返す
+    try {
+      const parsed = parseSafeJson(rawText);
+      return new Response(JSON.stringify(parsed), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-StoryDAW-Mode': 'meta-muse-api',
+        },
+      });
+    } catch (parseErr) {
+      const reason = parseErr instanceof Error ? parseErr.message : 'JSON parse error';
+      console.error('JSON Parse & Repair failed, returning dynamic fallback:', reason);
+      const fallbackResult = buildDynamicMockStoryboard(worldLock, blocks, lang);
+      return new Response(JSON.stringify(fallbackResult), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-StoryDAW-Mode': 'fallback-after-parse-error',
+          'X-StoryDAW-Error': encodeURIComponent(reason),
+        },
+      });
+    }
+  } catch (err) {
+    // ネットワーク例外や予期せぬエラー発生時も500で画面を止めず、フォールバックデータとともに原因ヘッダーを返す
+    const message = err instanceof Error ? err.message : 'Internal Server Error';
+    console.error('Unexpected error in /api/generate, returning fallback:', message);
+    const fallbackResult = buildDynamicMockStoryboard(worldLock, blocks, lang);
+    return new Response(JSON.stringify(fallbackResult), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'X-StoryDAW-Mode': 'meta-muse-api',
+        'X-StoryDAW-Mode': 'fallback-after-exception',
+        'X-StoryDAW-Error': encodeURIComponent(message),
       },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal Server Error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
     });
   }
 };
