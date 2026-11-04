@@ -18,7 +18,7 @@ export const PRESET_WORLD_LOCK: WorldLock = {
     },
     {
       id: 'char-mio',
-      name: 'Unit-04 / Mio',
+      name: 'Mio',
       role: 'Runaway courier android',
       traits: 'Damaged vocal module, curious about human food, carries a locked memory core',
     },
@@ -104,11 +104,11 @@ export const INITIAL_STORYBOARD: StoryboardResult = {
           size: 'medium',
           camera: 'Medium shot / Eye-level',
           composition:
-            'The damp noren curtain parts. Unit-04 / Mio leans against the wooden counter, blue sparks popping from her torn left shoulder joint.',
+            'The damp noren curtain parts. Mio leans against the wooden counter, blue sparks popping from her torn left shoulder joint.',
           dialogues: [
             { character: 'SFX', type: 'sfx', text: 'BZZT—CRACK!' },
             {
-              character: 'Unit-04 / Mio',
+              character: 'Mio',
               type: 'speech',
               text: 'Ex-excuse me... heat source detected. Requesting... temporary shelter.',
             },
@@ -142,7 +142,7 @@ export const INITIAL_STORYBOARD: StoryboardResult = {
           dialogues: [
             { character: 'Akira', type: 'speech', text: 'Courier model? No. That core is encrypted.' },
             {
-              character: 'Unit-04 / Mio',
+              character: 'Mio',
               type: 'speech',
               text: 'I—I do not know what is inside. Only that I must not be formatted.',
             },
@@ -164,7 +164,7 @@ export const INITIAL_STORYBOARD: StoryboardResult = {
             'Mio’s optical sensors dilate in panic as a red scan line brushes the edge of the stall curtain. Akira grabs her wrist firmly.',
           dialogues: [
             {
-              character: 'Unit-04 / Mio',
+              character: 'Mio',
               type: 'speech',
               text: 'Seeker drones... Te-telemetry sweep in 10 seconds!',
             },
@@ -207,7 +207,7 @@ export const INITIAL_STORYBOARD: StoryboardResult = {
             'Dense, superheated cloud of tonkotsu steam and aerosolized oil engulfs the alley. Enforcer thermal visors glitch violently with warning static.',
           dialogues: [
             { character: 'SFX', type: 'sfx', text: 'KZZZZT—ERROR! THERMAL WHITE-OUT!' },
-            { character: 'Unit-04 / Mio', type: 'monologue', text: 'He masked my core signature with the boiler heat...!' },
+            { character: 'Mio', type: 'monologue', text: 'He masked my core signature with the boiler heat...!' },
           ],
         },
         {
@@ -254,7 +254,7 @@ export const INITIAL_STORYBOARD: StoryboardResult = {
             'Mio wraps both repaired hands around the warm ceramic bowl. Her vocal module clicks softly as her optical sensors soften.',
           dialogues: [
             {
-              character: 'Unit-04 / Mio',
+              character: 'Mio',
               type: 'speech',
               text: 'Temperature: 68 degrees Celsius... It feels... very safe.',
             },
@@ -291,7 +291,7 @@ export const PRESET_WORLD_LOCK_JA: WorldLock = {
     },
     {
       id: 'char-mio',
-      name: 'Unit-04 / ミオ',
+      name: 'ミオ',
       role: '逃亡中のクーリエ（運び屋）型アンドロイド',
       traits: '音声モジュールが一部破損し少しノイズが混じる。人間の食事に強い好奇心を持つ。暗号化されたメモリコアを内蔵。',
     },
@@ -374,11 +374,11 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
           size: 'medium',
           camera: 'ミディアムショット ／ 正面アイレベル',
           composition:
-            '濡れた暖簾が乱暴に揺れ、左肩の装甲が裂けて青いスパークを散らすミオ（Unit-04）がカウンターに手をつく。',
+            '濡れた暖簾が乱暴に揺れ、左肩の装甲が裂けて青いスパークを散らすミオがカウンターに手をつく。',
           dialogues: [
             { character: 'SFX', type: 'sfx', text: 'バチッ……ジジッ！' },
             {
-              character: 'Unit-04 / ミオ',
+              character: 'ミオ',
               type: 'speech',
               text: 'す、すみません……熱源反応を検知……一時的な、雨宿りを申請します……。',
             },
@@ -412,7 +412,7 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
           dialogues: [
             { character: 'アキラ', type: 'speech', text: 'ただの運び屋型じゃないな。そのコア、重機密指定だぞ。' },
             {
-              character: 'Unit-04 / ミオ',
+              character: 'ミオ',
               type: 'speech',
               text: 'わ、私にも中身は分かりません。ただ……初期化（フォーマット）されるわけにはいかないんです。',
             },
@@ -434,7 +434,7 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
             '暖簾の裾を赤いレーザーがかすめ、ミオの光学センサー（瞳）が恐怖で見開かれる。アキラが素早く彼女の手首を掴む。',
           dialogues: [
             {
-              character: 'Unit-04 / ミオ',
+              character: 'ミオ',
               type: 'speech',
               text: 'シーカー・ドローン……！あ、あと10秒で生体・電装スキャンが到達します！',
             },
@@ -477,7 +477,7 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
             '画面全体を覆い尽くす超高熱の白濁湯気と油煙！エンフォーサーのサーマルバイザーが真っ白に飽和し、警告ノイズが激しく明滅する。',
           dialogues: [
             { character: 'SFX', type: 'sfx', text: 'バチバチッ――ERROR!! 熱源検知不能（ホワイトアウト）！' },
-            { character: 'Unit-04 / ミオ', type: 'monologue', text: 'ボイラーの熱量で、私のコア反応を完全にカモフラージュした……！？' },
+            { character: 'ミオ', type: 'monologue', text: 'ボイラーの熱量で、私のコア反応を完全にカモフラージュした……！？' },
           ],
         },
         {
@@ -524,7 +524,7 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
             '修理されたばかりの両手で、温かい陶器の丼をそっと包み込むミオ。彼女の光学センサーが柔らかく細められる。',
           dialogues: [
             {
-              character: 'Unit-04 / ミオ',
+              character: 'ミオ',
               type: 'speech',
               text: '器表面温度、68度……すごく、安心する温度です。',
             },
@@ -543,7 +543,8 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
   ],
 };
 
-// 言語に応じたプリセット一式をディープコピーして返すヘルパー関数（定数の参照共有による意図しない書き換えを防止）
+// 言語に応じたプリセット一式をディープコピーして返すヘルパー関数
+// 初期表示および「プリセットに戻す」実行時は右カラムを「未生成（pages: []）」状態にする
 export function getPresetByLang(lang: Language): {
   worldLock: WorldLock;
   blocks: StoryBlock[];
@@ -553,12 +554,12 @@ export function getPresetByLang(lang: Language): {
     return {
       worldLock: JSON.parse(JSON.stringify(PRESET_WORLD_LOCK_JA)) as WorldLock,
       blocks: JSON.parse(JSON.stringify(PRESET_BLOCKS_JA)) as StoryBlock[],
-      storyboard: JSON.parse(JSON.stringify(INITIAL_STORYBOARD_JA)) as StoryboardResult,
+      storyboard: { pages: [] },
     };
   }
   return {
     worldLock: JSON.parse(JSON.stringify(PRESET_WORLD_LOCK)) as WorldLock,
     blocks: JSON.parse(JSON.stringify(PRESET_BLOCKS)) as StoryBlock[],
-    storyboard: JSON.parse(JSON.stringify(INITIAL_STORYBOARD)) as StoryboardResult,
+    storyboard: { pages: [] },
   };
 }

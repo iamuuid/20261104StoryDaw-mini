@@ -11,7 +11,7 @@ import {
 } from './types';
 import { getPresetByLang } from './presetData';
 
-const STORAGE_KEY = 'storydaw_mini_state_v2';
+const STORAGE_KEY = 'storydaw_mini_state_v3';
 
 // 英語 (en) / 日本語 (ja) のUIラベル辞書
 const UI_DICT = {
@@ -59,6 +59,9 @@ const UI_DICT = {
     viewerSubSuffix: '— Inline Editable',
     showDiff: 'SHOW DIFF (BEFORE / AFTER)',
     allPages: 'All Pages',
+    presetReadyTitle: 'Preset Loaded — Ready to Generate',
+    presetReadyBody:
+      '[Preset Loaded] Click the "▶ GENERATE STORYBOARD BRIEF (META MUSE API)" button below to automatically generate a 4-page storyboard brief linked to your World Lock and Tension Curve.',
     emptyViewerTitle: 'Blank Storyboard Canvas',
     emptyViewerBody:
       'Fill in the World Lock (left column) and Ki-Sho-Ten-Ketsu tracks (center column), then click "▶ GENERATE STORYBOARD BRIEF (META MUSE API)" to generate your storyboard blueprint.',
@@ -120,6 +123,9 @@ const UI_DICT = {
     viewerSubSuffix: '— 全項目クリックで直接編集可能',
     showDiff: '前後比較（Diff表示）',
     allPages: '全ページ表示',
+    presetReadyTitle: 'プリセット読込完了（未生成）',
+    presetReadyBody:
+      '【プリセット読込完了】下の「▶ ネーム指示書を生成 (META MUSE API)」ボタンを押すと、世界観とテンションカーブに連動した4ページのネーム指示書が自動生成されます。',
     emptyViewerTitle: '新規キャンバス（未生成）',
     emptyViewerBody:
       '左カラム（世界観ロック）と中央カラム（起承転結トラック）を入力し、下の「▶ ネーム指示書を生成（Meta Muse API）」ボタンを押してください。',
@@ -284,7 +290,7 @@ export function App() {
     return getPresetByLang('ja').blocks;
   });
 
-  // 現在表示中のネーム指示書（StoryboardResult）の状態管理
+  // 現在表示中のネーム指示書（StoryboardResult）の状態管理（初期表示は未生成の { pages: [] }）
   const [storyboard, setStoryboard] = useState<StoryboardResult>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -293,9 +299,9 @@ export function App() {
         if (Array.isArray(parsed.storyboard?.pages)) return parsed.storyboard;
       }
     } catch {
-      // パース失敗時は初期言語サンプルを使用
+      // パース失敗時は未生成状態を使用
     }
-    return getPresetByLang('ja').storyboard;
+    return { pages: [] };
   });
 
   // 再生成前後の比較（Diff View）用に直前のStoryboardを保持
@@ -325,8 +331,8 @@ export function App() {
   const [activePageTab, setActivePageTab] = useState<number | 'all'>(0);
   const [showDiff, setShowDiff] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>('準備完了 — 日本語プリセット読込済');
-  const [generationMode, setGenerationMode] = useState<string>('Preset Sample');
+  const [statusMessage, setStatusMessage] = useState<string>('準備完了 — プリセット読込済（未生成）');
+  const [generationMode, setGenerationMode] = useState<string>('Standby (未生成)');
 
   const t = UI_DICT[lang];
 
@@ -394,8 +400,6 @@ export function App() {
         latestBlocksRef.current = nextBlocks;
         return nextBlocks;
       });
-      setStoryboard(targetPreset.storyboard);
-      setPreviousStoryboard(null);
     }
 
     setStatusMessage(
@@ -425,10 +429,7 @@ export function App() {
         },
       ],
     };
-    const blankBlocks = createBlankBlocks(lang).map((b) => ({
-      ...b,
-      characterIds: [defaultCharId],
-    }));
+    const blankBlocks = createBlankBlocks(lang);
 
     setHasUserEdited(true);
     setWorldLock(blankWorldLock);
@@ -473,7 +474,7 @@ export function App() {
     }
   };
 
-  // 現在の言語の初期プリセットへリセットするハンドラ
+  // 現在の言語の初期プリセットへリセットするハンドラ（右カラムは未生成状態にする）
   const handleResetToPreset = () => {
     const preset = getPresetByLang(lang);
     setHasUserEdited(false);
@@ -482,14 +483,14 @@ export function App() {
     setBlocks(preset.blocks);
     latestBlocksRef.current = preset.blocks;
     setPreviousStoryboard(null);
-    setStoryboard(preset.storyboard);
+    setStoryboard({ pages: [] });
     setActivePageTab(0);
     setShowDiff(false);
-    setGenerationMode('Preset Sample');
+    setGenerationMode(lang === 'ja' ? 'Standby (未生成)' : 'Standby (Ungenerated)');
     setStatusMessage(
       lang === 'ja'
-        ? '初期プリセット「ネオン・ラーメン 2099」に戻しました'
-        : 'Reset to "Neon Ramen 2099" Preset'
+        ? '初期プリセット「ネオン・ラーメン 2099」を読み込みました（未生成）'
+        : 'Loaded "Neon Ramen 2099" Preset (Ready to Generate)'
     );
   };
 
@@ -827,6 +828,13 @@ export function App() {
   const visiblePageEntries = storyboard.pages
     .map((page, pageIndex) => ({ page, pageIndex }))
     .filter(({ pageIndex }) => activePageTab === 'all' || activePageTab === pageIndex);
+
+  // 左・中央カラムにプリセット（または入力内容）が入っているか判定
+  const hasStoryInputs = Boolean(
+    worldLock.title.trim() ||
+      worldLock.setting.trim() ||
+      blocks.some((b) => b.event.trim().length > 0)
+  );
 
   return (
     <div className="h-screen overflow-hidden bg-[#FAFAFA] text-[#18181B] flex flex-col font-sans">
@@ -1386,35 +1394,18 @@ export function App() {
 
           {/* 右カラム独立スクロール領域 */}
           <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3">
-            {/* 新規作成（ページが空）の場合の初期ガイダンス表示 */}
+            {/* 未生成（プリセット読込時・新規作成時）のプレースホルダー表示 */}
             {storyboard.pages.length === 0 ? (
               <div className="my-auto p-6 bg-[#FAFAFA] border-2 border-dashed border-[#18181B] text-center flex flex-col items-center gap-3">
                 <div className="w-10 h-10 bg-[#2563EB] text-white border-2 border-[#18181B] flex items-center justify-center font-mono font-black text-lg">
-                  ✎
+                  ▶
                 </div>
                 <h3 className="text-sm font-black uppercase tracking-wider">
-                  {t.emptyViewerTitle}
+                  {hasStoryInputs ? t.presetReadyTitle : t.emptyViewerTitle}
                 </h3>
-                <p className="text-xs leading-relaxed text-[#18181B]/80 max-w-md">
-                  {t.emptyViewerBody}
+                <p className="text-xs leading-relaxed text-[#18181B] max-w-md font-medium">
+                  {hasStoryInputs ? t.presetReadyBody : t.emptyViewerBody}
                 </p>
-                <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                  <button
-                    type="button"
-                    onClick={handleGenerateStoryboard}
-                    disabled={isGenerating}
-                    className="text-xs font-bold uppercase px-3 py-1.5 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 cursor-pointer"
-                  >
-                    {isGenerating ? t.generatingBtn : t.generateBtn}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetToPreset}
-                    className="text-xs font-bold uppercase px-3 py-1.5 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] cursor-pointer"
-                  >
-                    {t.resetPreset}
-                  </button>
-                </div>
               </div>
             ) : (
               <>
