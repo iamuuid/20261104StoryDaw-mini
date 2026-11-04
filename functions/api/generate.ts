@@ -208,13 +208,10 @@ function closeOpenJsonStructures(fragment: string): string {
   }
 
   // 末尾が不完全なキーやコロン、カンマで終わっている場合を整理
-  // 例: `..., "composition":` -> ダミー空文字 `""` を補う
   if (/:\s*$/.test(text)) {
     text += '""';
   }
-  // 例: `..., "compo"` のようにコロン前のキー単体で切れている場合はその未完キーごと削る
   text = text.replace(/,\s*"[^"]*"\s*$/, '');
-  // 末尾の余分なカンマを除去
   text = text.replace(/,\s*$/, '');
 
   // スタックに残っている未閉鎖の括弧を逆順にすべて閉じる
@@ -335,8 +332,8 @@ export function parseSafeJson(rawContent: string): StoryboardResult {
   throw new Error('Unable to parse or repair JSON response from model.');
 }
 
-// META_API_KEY 未設定時やローカル検証時に、入力された WorldLock と各ブロックの Tension (0-100) / Event / Pages / 言語設定(lang) に応じて
-// 動的にネーム指示書を組み立てるフォールバック生成関数
+// META_API_KEY 未設定時やフォールバック時に、現在入力されている最新の WorldLock と各ブロックの Tension / Event / Pages / 言語設定(lang) を
+// 100%反映して動的にネーム指示書を組み立てる関数（プリセット固有の固定文言は一切含めない）
 export function buildDynamicMockStoryboard(
   worldLock: WorldLock,
   blocks: StoryBlock[],
@@ -346,20 +343,45 @@ export function buildDynamicMockStoryboard(
   let currentPageNumber = 1;
   const isJa = lang === 'ja';
 
+  const workTitle =
+    worldLock.title?.trim() || (isJa ? '無題プロジェクト' : 'Untitled Project');
+  const workSetting =
+    worldLock.setting?.trim() ||
+    (isJa ? '物語の舞台となる空間' : 'The primary setting of the story');
+  const workTheme =
+    worldLock.theme?.trim() || (isJa ? '登場人物たちの葛藤と選択' : 'Core character conflict and choice');
+
+  const validCharacters = (worldLock.characters || []).filter(
+    (c) => c.name?.trim() || c.role?.trim() || c.traits?.trim()
+  );
+
   for (const block of blocks) {
     const pageCount = Math.max(1, Math.min(3, Number(block.pages) || 1));
     const tension = Math.max(0, Math.min(100, Number(block.tension) || 0));
+    const sceneEvent =
+      block.event?.trim() ||
+      (isJa
+        ? `${block.label || block.type.toUpperCase()}の重要シーンが展開する。`
+        : `Key scene unfolding in ${block.label || block.type.toUpperCase()}.`);
 
-    // ブロックに割り当てられた登場キャラクターを取得（未選択時は全体から補完）
-    const activeChars = worldLock.characters.filter((c) => block.characterIds.includes(c.id));
-    const primaryChar = activeChars[0] ||
-      worldLock.characters[0] || {
-        id: 'default-1',
-        name: isJa ? '主人公' : 'Protagonist',
-        role: isJa ? '主要人物' : 'Lead',
-        traits: isJa ? '冷静沈着' : 'Focused',
-      };
-    const secondaryChar = activeChars[1] || worldLock.characters[1] || primaryChar;
+    // ブロックにチェックされた登場キャラクターを取得（未選択時は登録キャラ全体から補完）
+    const checkedChars = validCharacters.filter((c) => block.characterIds.includes(c.id));
+    const sceneChars = checkedChars.length > 0 ? checkedChars : validCharacters;
+
+    const primaryChar = sceneChars[0] || {
+      id: 'default-1',
+      name: isJa ? '主人公' : 'Protagonist',
+      role: isJa ? '中心人物' : 'Lead character',
+      traits: isJa ? '強い意志を持つ' : 'Determined expression',
+    };
+    const secondaryChar = sceneChars[1] || sceneChars[0] || primaryChar;
+
+    const pName = primaryChar.name?.trim() || (isJa ? 'キャラA' : 'Character A');
+    const pRole = primaryChar.role?.trim() || (isJa ? '主要人物' : 'Main role');
+    const pTraits = primaryChar.traits?.trim() || (isJa ? '印象的な佇まい' : 'Distinctive presence');
+
+    const sName = secondaryChar.name?.trim() || pName;
+    const sTraits = secondaryChar.traits?.trim() || pTraits;
 
     for (let p = 0; p < pageCount; p++) {
       const pageSuffix =
@@ -375,39 +397,39 @@ export function buildDynamicMockStoryboard(
         // Low Tension (0-35): 4〜5コマ (medium/small中心)、Long shotやEye-level、落ち着いた会話や情景描写
         const isVeryCalm = tension <= 18;
         if (isJa) {
-          pageSummary = `【低緊張：${tension}/100】情景描写と静かな空気感を重視した導入・余韻構成${pageSuffix}。「${worldLock.title}」の世界観の中で描かれる場面：${block.event}`;
+          pageSummary = `【低緊張：${tension}/100】『${workTitle}』の空気感と情景を丁寧に描く静かな構成${pageSuffix}。出来事：${sceneEvent}`;
           panels = [
             {
               panelNumber: 1,
               size: 'medium',
-              camera: 'ロングショット ／ アイレベル（状況説明の引き画）',
-              composition: `舞台「${worldLock.setting}」の空気感をゆったりと映し出す情景カット。テーマ「${worldLock.theme}」を象徴する静かな光と影。`,
+              camera: 'ロングショット ／ アイレベル（舞台状況の引き画）',
+              composition: `舞台設定「${workSetting}」の全景。テーマ「${workTheme}」を感じさせる穏やかな空気感の中、場面が始まる。`,
               dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'ザーーー……（静かに響く環境音）' },
+                { character: 'SFX', type: 'sfx', text: 'スゥ……（静かな環境音）' },
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'monologue',
-                  text: '静かな時間だ……。この場所だけは、まだ変わらない温度を保っている。',
+                  text: `${workTheme}——この場所で、また新しい時間が動き出す。`,
                 },
               ],
             },
             {
               panelNumber: 2,
               size: 'small',
-              camera: 'クローズアップ ／ 手元・小道具のアップ',
-              composition: `${primaryChar.name}の特徴（${primaryChar.traits}）が滲み出る細やかな仕草のカット。余白を活かした落ち着いたレイアウト。`,
-              dialogues: [{ character: 'SFX', type: 'sfx', text: 'コトン……（静かな物音）' }],
+              camera: 'クローズアップ ／ 手元・表情のディテール',
+              composition: `${pName}（${pRole}）の細やかな仕草。特徴（${pTraits}）が自然に表れる落ち着いたカット。`,
+              dialogues: [{ character: 'SFX', type: 'sfx', text: 'コトン……（小さな物音）' }],
             },
             {
               panelNumber: 3,
               size: 'medium',
               camera: 'ミディアムショット ／ アイレベル',
-              composition: `${block.event} ${primaryChar.name}と${secondaryChar.name}が穏やかな距離感で同じフレームに収まる。`,
+              composition: `【場面の出来事】${sceneEvent} ${pName}と${sName}が余白のある構図で向き合う。`,
               dialogues: [
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'speech',
-                  text: '少しだけ、ここにいてもいいですか……？',
+                  text: `${sceneEvent.slice(0, 45)}${sceneEvent.length > 45 ? '……' : ''}`,
                 },
               ],
             },
@@ -415,12 +437,12 @@ export function buildDynamicMockStoryboard(
               panelNumber: 4,
               size: 'small',
               camera: 'ミディアム・クローズアップ ／ 横顔',
-              composition: `${primaryChar.name}（${primaryChar.role}）は普段通りの手つきを止めず、静かに頷いて応じる。`,
+              composition: `${sName}（${sTraits}）の様子を受け止め、${pName}が静かに応じる。`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: '……ああ。急ぐ必要はない、そこに座れ。',
+                  text: '……そうだな。まずは落ち着いて状況を見極めよう。',
                 },
               ],
             },
@@ -431,30 +453,30 @@ export function buildDynamicMockStoryboard(
               panelNumber: 5,
               size: 'small',
               camera: 'ロングショット ／ ややハイアングル（余韻の引き）',
-              composition: `場面の余韻を残すロングカット。${block.event} の後の静けさが漂う。`,
+              composition: `「${workSetting}」の静かな風景へカメラが引き、「${sceneEvent}」の余韻を残す。`,
               dialogues: [
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'monologue',
-                  text: '不思議だ……警戒センサーのノイズが、すっと消えていく。',
+                  text: '静かだけれど、確かな変化が始まっている……。',
                 },
               ],
             });
           }
         } else {
-          pageSummary = `[Low Tension: ${tension}/100] Calm, atmospheric pacing${pageSuffix}. Establishing "${worldLock.title}" setting and quiet character nuances around: ${block.event}`;
+          pageSummary = `[Low Tension: ${tension}/100] Calm, atmospheric pacing for "${workTitle}"${pageSuffix}. Scene beat: ${sceneEvent}`;
           panels = [
             {
               panelNumber: 1,
               size: 'medium',
               camera: 'Long shot / Eye-level',
-              composition: `Wide establishing view of ${worldLock.setting} Calm environmental details emphasize the theme: "${worldLock.theme}"`,
+              composition: `Wide establishing view of the setting: "${workSetting}". Subtle environmental details reflect the theme: "${workTheme}".`,
               dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'SHAAA... (Quiet ambient sound)' },
+                { character: 'SFX', type: 'sfx', text: 'SHH... (Quiet ambient atmosphere)' },
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'monologue',
-                  text: `Another quiet hour. Everything moves slowly here.`,
+                  text: `${workTheme}... Everything begins quietly here.`,
                 },
               ],
             },
@@ -462,21 +484,19 @@ export function buildDynamicMockStoryboard(
               panelNumber: 2,
               size: 'small',
               camera: 'Close-up / Eye-level',
-              composition: `Subtle detail shot highlighting ${primaryChar.name}'s traits (${primaryChar.traits}). Gentle lighting and unhurried posture.`,
-              dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'KOTON... (Soft mechanical/object sound)' },
-              ],
+              composition: `Close detail shot capturing ${pName} (${pRole}) and their traits (${pTraits}).`,
+              dialogues: [{ character: 'SFX', type: 'sfx', text: 'TAP... (Subtle movement)' }],
             },
             {
               panelNumber: 3,
               size: 'medium',
               camera: 'Medium shot / Eye-level',
-              composition: `${block.event} ${primaryChar.name} and ${secondaryChar.name} share the frame with generous negative space.`,
+              composition: `[Scene Event] ${sceneEvent} ${pName} and ${sName} share the frame with calm negative space.`,
               dialogues: [
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'speech',
-                  text: `Is it alright if I stay for a moment? The rain hasn't let up.`,
+                  text: `${sceneEvent}`,
                 },
               ],
             },
@@ -484,12 +504,12 @@ export function buildDynamicMockStoryboard(
               panelNumber: 4,
               size: 'small',
               camera: 'Medium close-up / Eye-level',
-              composition: `${primaryChar.name} responds calmly without breaking routine, embodying ${primaryChar.role}.`,
+              composition: `${pName} observes ${sName} (${sTraits}) and responds with measured calm.`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: `Take a seat. No need to rush.`,
+                  text: `Let's take this one step at a time.`,
                 },
               ],
             },
@@ -500,12 +520,12 @@ export function buildDynamicMockStoryboard(
               panelNumber: 5,
               size: 'small',
               camera: 'Long shot / High angle',
-              composition: `Still exterior view lingering on the atmosphere after: ${block.event}`,
+              composition: `Lingering wide shot over "${workSetting}" after: ${sceneEvent}`,
               dialogues: [
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'monologue',
-                  text: `For the first time today, my sensors register zero threat.`,
+                  text: `A quiet turning point has begun.`,
                 },
               ],
             });
@@ -514,48 +534,43 @@ export function buildDynamicMockStoryboard(
       } else if (tension <= 70) {
         // Mid Tension (36-70): 4〜5コマ、バストアップや切り返し構図、テンポの良い対話
         if (isJa) {
-          pageSummary = `【中緊張：${tension}/100】バストアップと切り返し構図によるテンポの良い対話・状況変化${pageSuffix}。展開イベント：${block.event}`;
+          pageSummary = `【中緊張：${tension}/100】『${workTitle}』の展開が加速するバストアップ＆切り返し構成${pageSuffix}。出来事：${sceneEvent}`;
           panels = [
             {
               panelNumber: 1,
               size: 'medium',
               camera: 'ミディアムショット ／ 肩越し（オーバー・ザ・ショルダー）',
-              composition: `${primaryChar.name}の肩越しに事態の変化を捉える。${block.event}`,
+              composition: `舞台「${workSetting}」の中で事態が動く。${pName}の肩越しに捉える核心シーン：${sceneEvent}`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: '……動くな。この区画にスキャン波長が入り込んできている。',
-                },
-                {
-                  character: secondaryChar.name,
-                  type: 'speech',
-                  text: 'そ、そんな……予測よりずっと早く追手が……！',
+                  text: `状況が変わったぞ——「${sceneEvent.slice(0, 35)}${sceneEvent.length > 35 ? '…' : ''}」`,
                 },
               ],
             },
             {
               panelNumber: 2,
               size: 'small',
-              camera: 'ハイアングル（俯瞰トラッキング）',
-              composition: `「${worldLock.setting}」の暗がりを切り裂くように、不穏な影と警告光がじわじわと距離を詰めてくる。`,
-              dialogues: [{ character: 'SFX', type: 'sfx', text: 'キィィィン……ピピッ！（接近する探知音）' }],
+              camera: 'ハイアングル（状況変化の俯瞰カット）',
+              composition: `周囲の空気が一気に張り詰め、「${workTheme}」をめぐる緊張が高まる。`,
+              dialogues: [{ character: 'SFX', type: 'sfx', text: 'ザワッ……！（緊迫する空気）' }],
             },
             {
               panelNumber: 3,
               size: 'medium',
               camera: 'バストアップ ／ 切り返し構図（ショット・リバース・ショット）',
-              composition: `焦りを浮かべる${secondaryChar.name}の表情と、瞬時に周囲の状況を計算する${primaryChar.name}の鋭い視線を対比。`,
+              composition: `${sName}（${sTraits}）の緊迫した表情と、${pName}（${pTraits}）の鋭い視線をテンポ良く切り返す。`,
               dialogues: [
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'speech',
-                  text: '私のコア信号が捕捉されたら、この店まで巻き込まれます！',
+                  text: 'このままでは引き返せません……どう動きますか！？',
                 },
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: 'なら捕捉させなければいい。発信器を切れ、今すぐだ。',
+                  text: '迷っている暇はない。正面から 돌파（突破）するぞ。',
                 },
               ],
             },
@@ -563,34 +578,29 @@ export function buildDynamicMockStoryboard(
               panelNumber: 4,
               size: 'medium',
               camera: 'クローズアップ ／ ややローアングル',
-              composition: `${primaryChar.name}が迷いなく次の一手（対抗策）へと手を伸ばす。緊迫した眼光。`,
+              composition: `「${sceneEvent}」の渦中で決断を下す${pName}の力強いアップ。`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'monologue',
-                  text: 'スキャン到達まで残り10秒……一発で仕留めるぞ。',
+                  text: `${workTheme}——その答えをここで証明する。`,
                 },
               ],
             },
           ];
         } else {
-          pageSummary = `[Mid Tension: ${tension}/100] Brisk conversational pacing & shot-reverse-shot framing${pageSuffix}. Escalating situation: ${block.event}`;
+          pageSummary = `[Mid Tension: ${tension}/100] Brisk conversational pacing & shot-reverse-shot framing for "${workTitle}"${pageSuffix}. Scene beat: ${sceneEvent}`;
           panels = [
             {
               panelNumber: 1,
               size: 'medium',
               camera: 'Medium shot / Over-the-shoulder',
-              composition: `Tight framing over ${primaryChar.name}'s shoulder as the situation shifts: ${block.event}`,
+              composition: `Within "${workSetting}", the situation escalates over ${pName}'s shoulder: ${sceneEvent}`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: `Hold still. Something's scanning this sector.`,
-                },
-                {
-                  character: secondaryChar.name,
-                  type: 'speech',
-                  text: `They found my signal faster than calculated...`,
+                  text: `Look closely—things are moving fast now.`,
                 },
               ],
             },
@@ -598,24 +608,24 @@ export function buildDynamicMockStoryboard(
               panelNumber: 2,
               size: 'small',
               camera: 'High angle / Tracking shot',
-              composition: `Tension mounts in the background of ${worldLock.setting} Warning indicators and approaching shadows cut across the frame.`,
-              dialogues: [{ character: 'SFX', type: 'sfx', text: 'WHIRRRR—BEEP! (Approaching sweep)' }],
+              composition: `Stakes rise around "${workTheme}" as the environment reacts to: ${sceneEvent}`,
+              dialogues: [{ character: 'SFX', type: 'sfx', text: 'RUSTLE—TENSION RISING!' }],
             },
             {
               panelNumber: 3,
               size: 'medium',
               camera: 'Shot-reverse-shot / Bust-up',
-              composition: `Rapid cut between ${secondaryChar.name}'s tense expression and ${primaryChar.name}'s sharp, observant gaze.`,
+              composition: `Rapid cut between ${sName} (${sTraits}) and ${pName} (${pTraits}) in tight bust-up framing.`,
               dialogues: [
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'speech',
-                  text: `If they lock onto my core, this whole stall will be flagged!`,
+                  text: `${sceneEvent}`,
                 },
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: `Then we don't let them lock on. Cut your output.`,
+                  text: `We don't back down. Stay with me.`,
                 },
               ],
             },
@@ -623,12 +633,12 @@ export function buildDynamicMockStoryboard(
               panelNumber: 4,
               size: 'medium',
               camera: 'Close-up / Slight low angle',
-              composition: `${primaryChar.name} prepares a decisive countermeasure, hands moving with practiced precision.`,
+              composition: `${pName} (${pRole}) locks eyes on the objective with unwavering resolve.`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'monologue',
-                  text: `Ten seconds before the sweep hits the curtain. Make it count.`,
+                  text: `This is where "${workTheme}" is put to the test.`,
                 },
               ],
             },
@@ -638,19 +648,19 @@ export function buildDynamicMockStoryboard(
         // High Tension (71-100): 2〜3コマ (large/wideの大ゴマ中心)、Extreme close-upやLow/High angle（アオリ・俯瞰）、セリフは極限まで短くインパクト重視
         const isExtremeClimax = tension >= 92;
         if (isJa) {
-          pageSummary = `【高緊張：${tension}/100】大ゴマ（Wide/Large）と激しいアオリ・俯瞰によるクライマックス演出${pageSuffix}！ ${block.event}`;
+          pageSummary = `【高緊張：${tension}/100】『${workTitle}』最高潮の大ゴマ（Wide/Large）＆アオリ演出${pageSuffix}！出来事：${sceneEvent}`;
           panels = [
             {
               panelNumber: 1,
               size: 'wide',
               camera: 'ローアングル（強烈なアオリ構図）',
-              composition: `ページ横ぶち抜きの特大インパクトコマ！ ${block.event} 激しい集中線と明暗コントラストが画面を支配する！`,
+              composition: `ページ横ぶち抜きの特大インパクトコマ！舞台「${workSetting}」で炸裂する決定的な瞬間：${sceneEvent}`,
               dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'ドゴォォォォン――ブシャアアッ！！' },
+                { character: 'SFX', type: 'sfx', text: 'ドゴォォォォン！！（激しい衝撃音）' },
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: '伏せろッ！！今すぐだ！',
+                  text: '今だッ！！行くぞ！！',
                 },
               ],
             },
@@ -658,13 +668,13 @@ export function buildDynamicMockStoryboard(
               panelNumber: 2,
               size: 'large',
               camera: 'エクストリーム・クローズアップ ／ 斜め構図（ダッチアングル）',
-              composition: `火花と白煙が斜めに噴き上がる中、${primaryChar.name}と${secondaryChar.name}の鬼気迫る超アップ！`,
+              composition: `「${sceneEvent}」のまっただ中、${pName}（${pTraits}）と${sName}の気迫がぶつかり合う超アップ！`,
               dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'バチバチッ――警告！センサー飽和（ホワイトアウト）！' },
+                { character: 'SFX', type: 'sfx', text: 'バチィィッ！！' },
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'monologue',
-                  text: 'すごい……熱気と蒸気で敵の目を完全に奪った……！',
+                  text: `${workTheme}——すべてがこの一瞬に懸かっている……！`,
                 },
               ],
             },
@@ -675,30 +685,30 @@ export function buildDynamicMockStoryboard(
               panelNumber: 3,
               size: 'medium',
               camera: '急角度ハイアングル（大俯瞰ショット）',
-              composition: `渦巻く蒸気の中で${secondaryChar.name}を背に庇い、仁王立ちする${primaryChar.name}のシルエット。`,
+              composition: `激しい動きの直後、「${workSetting}」の中心で立ち向かう${pName}と${sName}のダイナミックな引き画。`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: '……息を潜めろ。まだ終わっちゃいない。',
+                  text: '……絶対に譲らない！',
                 },
               ],
             });
           }
         } else {
-          pageSummary = `[High Tension: ${tension}/100] Explosive climax layout with dominant large/wide panels and extreme angles${pageSuffix}! ${block.event}`;
+          pageSummary = `[High Tension: ${tension}/100] Explosive climax layout for "${workTitle}" with dominant large/wide panels${pageSuffix}! Scene beat: ${sceneEvent}`;
           panels = [
             {
               panelNumber: 1,
               size: 'wide',
               camera: 'Low angle / Worm’s-eye view (Dramatic Aori)',
-              composition: `Full-bleed horizontal impact panel! ${block.event} Dynamic speed lines and high-contrast lighting dominate the frame.`,
+              composition: `Full-bleed horizontal impact panel in "${workSetting}"! Peak action: ${sceneEvent}`,
               dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'GWOOOOOOSH—BOOM!!' },
+                { character: 'SFX', type: 'sfx', text: 'BOOOOOOM—CRASH!!' },
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: `Get down! NOW!`,
+                  text: `NOW!! Move!`,
                 },
               ],
             },
@@ -706,13 +716,13 @@ export function buildDynamicMockStoryboard(
               panelNumber: 2,
               size: 'large',
               camera: 'Extreme close-up / Dutch angle',
-              composition: `Intense close-up on ${primaryChar.name} and ${secondaryChar.name} amidst the peak action. Sparks and dense steam cut diagonally across the lens.`,
+              composition: `Intense close-up on ${pName} (${pTraits}) and ${sName} at the climax of: ${sceneEvent}`,
               dialogues: [
-                { character: 'SFX', type: 'sfx', text: 'KZZZZT—CRITICAL OVERLOAD!' },
+                { character: 'SFX', type: 'sfx', text: 'FLASH—IMPACT!!' },
                 {
-                  character: secondaryChar.name,
+                  character: sName,
                   type: 'monologue',
-                  text: `He's blinding their sensors—!`,
+                  text: `${workTheme}—everything comes down to this instant!`,
                 },
               ],
             },
@@ -723,12 +733,12 @@ export function buildDynamicMockStoryboard(
               panelNumber: 3,
               size: 'medium',
               camera: 'High angle / Steep bird’s-eye (Fukan)',
-              composition: `Sharp overhead view as ${primaryChar.name} shields ${secondaryChar.name} in the aftermath of the surge.`,
+              composition: `Dynamic overhead view across "${workSetting}" as ${pName} and ${sName} hold their ground.`,
               dialogues: [
                 {
-                  character: primaryChar.name,
+                  character: pName,
                   type: 'speech',
-                  text: `Don't move a muscle.`,
+                  text: `We finish this here!`,
                 },
               ],
             });
@@ -753,14 +763,14 @@ export function buildDynamicMockStoryboard(
 export function buildSystemPrompt(lang: Language = 'en'): string {
   const languageDirective =
     lang === 'ja'
-      ? `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in natural, concise JAPANESE suitable for a professional manga storyboard ("漫画のネーム指示書"). Keep each composition description concise (1-2 sentences) so the entire JSON fits well within token limits. Keep JSON keys and enum values ("blockType", "size", "type") in exact English as specified in the schema.`
+      ? `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in natural, concise JAPANESE suitable for a professional manga storyboard ("漫画のネーム指示書"). Keep each panel composition concise (1-2 sentences) so the entire JSON fits well within token limits. Keep JSON keys and enum values ("blockType", "size", "type") in exact English as specified in the schema.`
       : `5. LANGUAGE REQUIREMENT: Output all descriptive fields ("pageSummary", "camera", "composition", "dialogues[].character", and "dialogues[].text") in clear, concise ENGLISH (1-2 sentences per panel composition).`;
 
   return `You are a professional manga storyboard director ("Name" / ネーム architect) for StoryDAW Mini.
-Your job is to generate a structured, text-only manga storyboard brief in pure JSON format based on the user's "WorldLock" (fixed world & character constants) and "Ki-Sho-Ten-Ketsu" story blocks with specific "tension" parameters (0 to 100).
+Your job is to generate a structured, text-only manga storyboard brief in pure JSON format based strictly on the user's provided "worldLock" (title, setting, theme, characters) and "blocks" (Ki-Sho-Ten-Ketsu story beats and tension 0-100).
 
 STRICT RULES:
-1. NEVER alter or contradict the WorldLock constants (title, setting, theme, and each character's role, traits, and speech patterns).
+1. Base EVERY page summary, panel composition, camera angle, and dialogue line 100% on the user's current "worldLock" and each block's "event". Never use unrelated default stories.
 2. Direct the visual pacing, panel count, panel sizes, camera angles, and dialogue length strictly according to each block's "tension" (0-100):
    - Low Tension (0-35):
      * 4 to 5 panels per page (mostly "medium" and "small" sizes).
@@ -838,7 +848,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     const apiKey = context.env?.META_API_KEY?.trim();
     const hasValidApiKey = Boolean(apiKey && apiKey !== 'your_api_key_here');
 
-    // 環境変数 META_API_KEY が未設定（ローカルテスト時など）の場合は言語に応じた動的モックJSONを返す
+    // 環境変数 META_API_KEY が未設定（ローカルテスト時など）の場合は、最新のworldLockとblocksを反映した動的モックJSONを返す
     if (!hasValidApiKey) {
       const mockResult = buildDynamicMockStoryboard(worldLock, blocks, lang);
       return new Response(JSON.stringify(mockResult), {
@@ -854,27 +864,55 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     const baseUrl = (context.env.META_BASE_URL || 'https://api.meta.ai/v1').replace(/\/+$/, '');
     const model = context.env.META_MODEL || 'muse-spark-1.3';
 
+    // 各ブロックで登場キャラのチェックが外れている場合でも、worldLock.characters 全体を参照できるよう補完
+    const allDefinedCharacters = (worldLock.characters || []).map((c) => ({
+      name: c.name,
+      role: c.role,
+      traits: c.traits,
+    }));
+
     const userPrompt = JSON.stringify(
       {
         outputLanguage: lang === 'ja' ? 'Japanese (日本語)' : 'English',
-        worldLock,
-        blocks: blocks.map((b) => ({
-          type: b.type,
-          label: b.label,
-          pages: b.pages,
-          tension: b.tension,
-          event: b.event,
-          charactersInScene: worldLock.characters
+        worldLock: {
+          title: worldLock.title,
+          setting: worldLock.setting,
+          theme: worldLock.theme,
+          characters: allDefinedCharacters,
+        },
+        blocks: blocks.map((b) => {
+          const selectedChars = (worldLock.characters || [])
             .filter((c) => b.characterIds.includes(c.id))
-            .map((c) => ({ name: c.name, role: c.role, traits: c.traits })),
-        })),
+            .map((c) => ({ name: c.name, role: c.role, traits: c.traits }));
+          return {
+            type: b.type,
+            label: b.label,
+            pages: b.pages,
+            tension: b.tension,
+            event: b.event,
+            charactersInScene: selectedChars.length > 0 ? selectedChars : allDefinedCharacters,
+          };
+        }),
       },
       null,
       2
     );
 
-    // Meta Model API (Muse Spark 1.3) 公式仕様: POST ${baseUrl}/responses (非ストリーミングJSON, max_output_tokens: 16384)
-    const response = await fetch(`${baseUrl}/responses`, {
+    const requestMessages = [
+      {
+        role: 'system',
+        content: buildSystemPrompt(lang),
+      },
+      {
+        role: 'user',
+        content: `Generate the complete StoryboardResult JSON in ${
+          lang === 'ja' ? 'Japanese (日本語)' : 'English'
+        } strictly reflecting the following user-edited WorldLock and Ki-Sho-Ten-Ketsu blocks:\n${userPrompt}`,
+      },
+    ];
+
+    // まず max_output_tokens: 8192 でリクエストし、もしモデルの上限等で400エラーが返った場合は 4096 で自動再試行
+    let response = await fetch(`${baseUrl}/responses`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -882,22 +920,27 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       },
       body: JSON.stringify({
         model,
-        input: [
-          {
-            role: 'system',
-            content: buildSystemPrompt(lang),
-          },
-          {
-            role: 'user',
-            content: `Generate the complete StoryboardResult JSON in ${
-              lang === 'ja' ? 'Japanese (日本語)' : 'English'
-            } for the following WorldLock and Ki-Sho-Ten-Ketsu blocks:\n${userPrompt}`,
-          },
-        ],
+        input: requestMessages,
         temperature: 0.7,
-        max_output_tokens: 16384,
+        max_output_tokens: 8192,
       }),
     });
+
+    if (!response.ok && response.status === 400) {
+      response = await fetch(`${baseUrl}/responses`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          input: requestMessages,
+          temperature: 0.7,
+          max_output_tokens: 4096,
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown API error');
@@ -928,7 +971,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       });
     }
 
-    // JSONパース＆自動リペアを試行し、万一修復不可能な場合でも500で停止させずフォールバックを返す
+    // JSONパース＆自動リペアを試行し、万一修復不可能な場合でも500で停止させず最新の入力内容を反映したフォールバックを返す
     try {
       const parsed = parseSafeJson(rawText);
       return new Response(JSON.stringify(parsed), {
@@ -952,7 +995,6 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       });
     }
   } catch (err) {
-    // ネットワーク例外や予期せぬエラー発生時も500で画面を止めず、フォールバックデータとともに原因ヘッダーを返す
     const message = err instanceof Error ? err.message : 'Internal Server Error';
     console.error('Unexpected error in /api/generate, returning fallback:', message);
     const fallbackResult = buildDynamicMockStoryboard(worldLock, blocks, lang);

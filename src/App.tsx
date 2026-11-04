@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   WorldLock,
   StoryBlock,
@@ -9,11 +9,7 @@ import {
   Language,
   BlockType,
 } from './types';
-import {
-  PRESET_WORLD_LOCK,
-  PRESET_WORLD_LOCK_JA,
-  getPresetByLang,
-} from './presetData';
+import { getPresetByLang } from './presetData';
 
 const STORAGE_KEY = 'storydaw_mini_state_v2';
 
@@ -246,6 +242,20 @@ export function App() {
     return 'ja';
   });
 
+  // ユーザーがプリセットからテキスト等を編集したかどうかを追跡（言語切替時に編集内容が上書きされるのを防ぐ）
+  const [hasUserEdited, setHasUserEdited] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.hasUserEdited === 'boolean') return parsed.hasUserEdited;
+      }
+    } catch {
+      // 無視
+    }
+    return false;
+  });
+
   // 世界観設定（World Lock）の状態管理
   const [worldLock, setWorldLock] = useState<WorldLock>(() => {
     try {
@@ -302,6 +312,15 @@ export function App() {
     return null;
   });
 
+  // GENERATEボタン押下時に常に最新の入力Stateを参照するためのRef（プリセット編集時・新規作成時共通）
+  const latestWorldLockRef = useRef<WorldLock>(worldLock);
+  const latestBlocksRef = useRef<StoryBlock[]>(blocks);
+  const latestLangRef = useRef<Language>(lang);
+
+  latestWorldLockRef.current = worldLock;
+  latestBlocksRef.current = blocks;
+  latestLangRef.current = lang;
+
   // UI状態の管理（デフォルトは1ページ目=インデックス0を表示）
   const [activePageTab, setActivePageTab] = useState<number | 'all'>(0);
   const [showDiff, setShowDiff] = useState<boolean>(false);
@@ -329,6 +348,7 @@ export function App() {
         STORAGE_KEY,
         JSON.stringify({
           lang,
+          hasUserEdited,
           worldLock,
           blocks,
           storyboard,
@@ -338,23 +358,31 @@ export function App() {
     } catch {
       // localStorage容量制限等は無視
     }
-  }, [lang, worldLock, blocks, storyboard, previousStoryboard]);
+  }, [lang, hasUserEdited, worldLock, blocks, storyboard, previousStoryboard]);
 
-  // 言語切り替えハンドラ（プリセット使用中は対応言語のプリセットデータへ自動切り替え）
+  // WorldLockのトップレベルフィールド（title, setting, theme）更新ハンドラ
+  const handleUpdateWorldField = (field: 'title' | 'setting' | 'theme', value: string) => {
+    setHasUserEdited(true);
+    setWorldLock((prev) => {
+      const next = { ...prev, [field]: value };
+      latestWorldLockRef.current = next;
+      return next;
+    });
+  };
+
+  // 言語切り替えハンドラ（未編集の初期プリセット状態の時のみ、プリセットの言語を切り替える）
   const handleSwitchLanguage = (nextLang: Language) => {
     if (nextLang === lang) return;
     setLang(nextLang);
+    latestLangRef.current = nextLang;
 
-    const isUsingPresetTitle =
-      worldLock.title === PRESET_WORLD_LOCK.title ||
-      worldLock.title === PRESET_WORLD_LOCK_JA.title;
-
-    if (isUsingPresetTitle) {
+    if (!hasUserEdited) {
       const targetPreset = getPresetByLang(nextLang);
       setWorldLock(targetPreset.worldLock);
-      // ユーザーが調整したTension値やページ数、並び順は維持しつつイベント文・ラベルを該当言語へ更新
-      setBlocks((prevBlocks) =>
-        prevBlocks.map((b) => {
+      latestWorldLockRef.current = targetPreset.worldLock;
+
+      setBlocks((prevBlocks) => {
+        const nextBlocks = prevBlocks.map((b) => {
           const matchedPresetBlock = targetPreset.blocks.find((pb) => pb.type === b.type);
           if (!matchedPresetBlock) return b;
           return {
@@ -362,8 +390,10 @@ export function App() {
             label: matchedPresetBlock.label,
             event: matchedPresetBlock.event,
           };
-        })
-      );
+        });
+        latestBlocksRef.current = nextBlocks;
+        return nextBlocks;
+      });
       setStoryboard(targetPreset.storyboard);
       setPreviousStoryboard(null);
     }
@@ -381,20 +411,30 @@ export function App() {
       return;
     }
 
-    setWorldLock({
+    const defaultCharId = `char-${Date.now()}`;
+    const blankWorldLock: WorldLock = {
       title: '',
       setting: '',
       theme: '',
       characters: [
         {
-          id: `char-${Date.now()}`,
+          id: defaultCharId,
           name: '',
           role: '',
           traits: '',
         },
       ],
-    });
-    setBlocks(createBlankBlocks(lang));
+    };
+    const blankBlocks = createBlankBlocks(lang).map((b) => ({
+      ...b,
+      characterIds: [defaultCharId],
+    }));
+
+    setHasUserEdited(true);
+    setWorldLock(blankWorldLock);
+    latestWorldLockRef.current = blankWorldLock;
+    setBlocks(blankBlocks);
+    latestBlocksRef.current = blankBlocks;
     setPreviousStoryboard(null);
     setStoryboard({ pages: [] });
     setActivePageTab(0);
@@ -413,9 +453,10 @@ export function App() {
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
-          lang,
-          worldLock,
-          blocks,
+          lang: latestLangRef.current,
+          hasUserEdited,
+          worldLock: latestWorldLockRef.current,
+          blocks: latestBlocksRef.current,
           storyboard,
           previousStoryboard,
         })
@@ -435,8 +476,11 @@ export function App() {
   // 現在の言語の初期プリセットへリセットするハンドラ
   const handleResetToPreset = () => {
     const preset = getPresetByLang(lang);
+    setHasUserEdited(false);
     setWorldLock(preset.worldLock);
+    latestWorldLockRef.current = preset.worldLock;
     setBlocks(preset.blocks);
+    latestBlocksRef.current = preset.blocks;
     setPreviousStoryboard(null);
     setStoryboard(preset.storyboard);
     setActivePageTab(0);
@@ -453,9 +497,9 @@ export function App() {
   const handleExportJson = () => {
     const exportPayload = {
       exportedAt: new Date().toISOString(),
-      lang,
-      worldLock,
-      blocks,
+      lang: latestLangRef.current,
+      worldLock: latestWorldLockRef.current,
+      blocks: latestBlocksRef.current,
       storyboard,
     };
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
@@ -463,7 +507,7 @@ export function App() {
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const safeTitle = (worldLock.title || 'storydaw-project')
+    const safeTitle = (latestWorldLockRef.current.title || 'storydaw-project')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
@@ -476,13 +520,19 @@ export function App() {
 
   // キャラクターの更新・追加・削除ハンドラ
   const handleUpdateCharacter = (id: string, field: keyof Character, value: string) => {
-    setWorldLock((prev) => ({
-      ...prev,
-      characters: prev.characters.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
-    }));
+    setHasUserEdited(true);
+    setWorldLock((prev) => {
+      const next = {
+        ...prev,
+        characters: prev.characters.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
+      };
+      latestWorldLockRef.current = next;
+      return next;
+    });
   };
 
   const handleAddCharacter = () => {
+    setHasUserEdited(true);
     const newId = `char-${Date.now()}`;
     const newChar: Character = {
       id: newId,
@@ -490,35 +540,57 @@ export function App() {
       role: '',
       traits: '',
     };
-    setWorldLock((prev) => ({
-      ...prev,
-      characters: [...prev.characters, newChar],
-    }));
+    setWorldLock((prev) => {
+      const next = {
+        ...prev,
+        characters: [...prev.characters, newChar],
+      };
+      latestWorldLockRef.current = next;
+      return next;
+    });
+    // 追加したキャラクターをデフォルトで各ブロックの登場キャラにも追加
+    setBlocks((prev) => {
+      const next = prev.map((b) => ({
+        ...b,
+        characterIds: [...b.characterIds, newId],
+      }));
+      latestBlocksRef.current = next;
+      return next;
+    });
   };
 
   const handleRemoveCharacter = (id: string) => {
-    setWorldLock((prev) => ({
-      ...prev,
-      characters: prev.characters.filter((c) => c.id !== id),
-    }));
+    setHasUserEdited(true);
+    setWorldLock((prev) => {
+      const next = {
+        ...prev,
+        characters: prev.characters.filter((c) => c.id !== id),
+      };
+      latestWorldLockRef.current = next;
+      return next;
+    });
     // 各ブロックの登場キャラ選択からも除外
-    setBlocks((prev) =>
-      prev.map((b) => ({
+    setBlocks((prev) => {
+      const next = prev.map((b) => ({
         ...b,
         characterIds: b.characterIds.filter((cid) => cid !== id),
-      }))
-    );
+      }));
+      latestBlocksRef.current = next;
+      return next;
+    });
   };
 
   // 起承転結ブロックの順序入れ替え（↑ / ↓）ハンドラ
   const handleMoveBlock = (index: number, direction: -1 | 1) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= blocks.length) return;
+    setHasUserEdited(true);
     setBlocks((prev) => {
       const next = [...prev];
       const temp = next[index];
       next[index] = next[targetIndex];
       next[targetIndex] = temp;
+      latestBlocksRef.current = next;
       return next;
     });
   };
@@ -529,13 +601,19 @@ export function App() {
     field: K,
     value: StoryBlock[K]
   ) => {
-    setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, [field]: value } : b)));
+    setHasUserEdited(true);
+    setBlocks((prev) => {
+      const next = prev.map((b) => (b.id === id ? { ...b, [field]: value } : b));
+      latestBlocksRef.current = next;
+      return next;
+    });
   };
 
   // ブロック内の登場キャラクター選択トグル
   const handleToggleBlockCharacter = (blockId: string, charId: string) => {
-    setBlocks((prev) =>
-      prev.map((b) => {
+    setHasUserEdited(true);
+    setBlocks((prev) => {
+      const next = prev.map((b) => {
         if (b.id !== blockId) return b;
         const exists = b.characterIds.includes(charId);
         return {
@@ -544,15 +622,22 @@ export function App() {
             ? b.characterIds.filter((id) => id !== charId)
             : [...b.characterIds, charId],
         };
-      })
-    );
+      });
+      latestBlocksRef.current = next;
+      return next;
+    });
   };
 
-  // バックエンドAPI (/api/generate) を呼び出してネーム指示書を生成するハンドラ（langも送信）
+  // バックエンドAPI (/api/generate) を呼び出してネーム指示書を生成するハンドラ
+  // 新規作成時・プリセット編集時ともに同一のフローで最新のState（latestWorldLockRef / latestBlocksRef）を送信する
   const handleGenerateStoryboard = async () => {
+    const currentWorldLock = latestWorldLockRef.current;
+    const currentBlocks = latestBlocksRef.current;
+    const currentLang = latestLangRef.current;
+
     setIsGenerating(true);
     setStatusMessage(
-      lang === 'ja'
+      currentLang === 'ja'
         ? 'Meta Muse API でネーム指示書を生成中...'
         : 'Generating storyboard brief via Meta Muse API...'
     );
@@ -565,7 +650,11 @@ export function App() {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ worldLock, blocks, lang }),
+        body: JSON.stringify({
+          worldLock: currentWorldLock,
+          blocks: currentBlocks,
+          lang: currentLang,
+        }),
       });
 
       if (!response.ok) {
@@ -584,14 +673,14 @@ export function App() {
         setGenerationMode(
           modeHeader === 'meta-muse-api'
             ? 'Meta Muse API (Live)'
-            : lang === 'ja'
-            ? 'Dynamic Tension Engine (ローカル動的生成)'
-            : 'Dynamic Tension Engine (Local Fallback)'
+            : currentLang === 'ja'
+            ? 'Dynamic Tension Engine (最新入力反映)'
+            : 'Dynamic Tension Engine (Live Input)'
         );
         setStatusMessage(
-          lang === 'ja'
-            ? `全${result.pages.length}ページのネーム指示書を生成しました。「前後比較（Diff表示）」で変化を確認できます。`
-            : `Generated ${result.pages.length} pages. Toggle "Show Diff" to compare changes.`
+          currentLang === 'ja'
+            ? `「${currentWorldLock.title || '無題'}」の全${result.pages.length}ページを生成しました。`
+            : `Generated ${result.pages.length} pages for "${currentWorldLock.title || 'Untitled'}".`
         );
       } else {
         throw new Error('Malformed StoryboardResult format');
@@ -863,7 +952,7 @@ export function App() {
                 <input
                   type="text"
                   value={worldLock.title}
-                  onChange={(e) => setWorldLock({ ...worldLock, title: e.target.value })}
+                  onChange={(e) => handleUpdateWorldField('title', e.target.value)}
                   placeholder={t.projectTitlePlaceholder}
                   className="w-full text-xs font-bold px-2 py-1.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                 />
@@ -876,7 +965,7 @@ export function App() {
                 <textarea
                   rows={3}
                   value={worldLock.setting}
-                  onChange={(e) => setWorldLock({ ...worldLock, setting: e.target.value })}
+                  onChange={(e) => handleUpdateWorldField('setting', e.target.value)}
                   placeholder={t.worldSettingPlaceholder}
                   className="w-full text-xs leading-snug px-2 py-1.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                 />
@@ -889,7 +978,7 @@ export function App() {
                 <textarea
                   rows={2}
                   value={worldLock.theme}
-                  onChange={(e) => setWorldLock({ ...worldLock, theme: e.target.value })}
+                  onChange={(e) => handleUpdateWorldField('theme', e.target.value)}
                   placeholder={t.coreThemePlaceholder}
                   className="w-full text-xs leading-snug px-2 py-1.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                 />

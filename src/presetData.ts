@@ -543,7 +543,7 @@ export const INITIAL_STORYBOARD_JA: StoryboardResult = {
   ],
 };
 
-// 言語に応じたプリセット一式を返すヘルパー関数
+// 言語に応じたプリセット一式をディープコピーして返すヘルパー関数（定数の参照共有による意図しない書き換えを防止）
 export function getPresetByLang(lang: Language): {
   worldLock: WorldLock;
   blocks: StoryBlock[];
@@ -551,14 +551,14 @@ export function getPresetByLang(lang: Language): {
 } {
   if (lang === 'ja') {
     return {
-      worldLock: PRESET_WORLD_LOCK_JA,
-      blocks: PRESET_BLOCKS_JA,
-      storyboard: INITIAL_STORYBOARD_JA,
+      worldLock: JSON.parse(JSON.stringify(PRESET_WORLD_LOCK_JA)) as WorldLock,
+      blocks: JSON.parse(JSON.stringify(PRESET_BLOCKS_JA)) as StoryBlock[],
+      storyboard: JSON.parse(JSON.stringify(INITIAL_STORYBOARD_JA)) as StoryboardResult,
     };
   }
   return {
-    worldLock: PRESET_WORLD_LOCK,
-    blocks: PRESET_BLOCKS,
-    storyboard: INITIAL_STORYBOARD,
+    worldLock: JSON.parse(JSON.stringify(PRESET_WORLD_LOCK)) as WorldLock,
+    blocks: JSON.parse(JSON.stringify(PRESET_BLOCKS)) as StoryBlock[],
+    storyboard: JSON.parse(JSON.stringify(INITIAL_STORYBOARD)) as StoryboardResult,
   };
 }
