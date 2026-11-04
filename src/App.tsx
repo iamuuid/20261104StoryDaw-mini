@@ -36,9 +36,11 @@ const UI_DICT = {
     saveLocalTooltip: 'Save current project state to browser local storage',
     exportJson: 'EXPORT JSON',
     exportJsonTooltip: 'Download full project and storyboard data as a JSON file',
-    copyBrief: '📋 COPY BRIEF',
-    copyBriefTooltip: 'Copy formatted storyboard brief text (Markdown) to clipboard',
-    copiedBrief: '✓ COPIED!',
+    copyScript: '📋 COPY SCRIPT',
+    copyScriptTooltip: 'Copy human-readable script & storyboard text to clipboard',
+    copiedScript: '✓ COPIED!',
+    downloadScript: '📄 DOWNLOAD SCRIPT (.txt)',
+    downloadScriptTooltip: 'Download human-readable script & storyboard as a .txt file',
     editedBadge: '✎ EDITED',
     confirmOverwriteDirty:
       'Your manual edits in the right column will be overwritten. Regenerate with AI?',
@@ -126,10 +128,12 @@ const UI_DICT = {
     saveLocal: 'ローカル保存',
     saveLocalTooltip: '現在の状態をブラウザにローカル保存します',
     exportJson: 'JSON出力',
-    exportJsonTooltip: 'プロジェクトとネーム指示書データをJSON形式で出力します',
-    copyBrief: '📋 指示書テキストをコピー',
-    copyBriefTooltip: '整形されたネーム指示書テキスト（Markdown）をクリップボードにコピーします',
-    copiedBrief: '✓ コピーしました！',
+    exportJsonTooltip: 'システム連携・バックアップ用にJSON形式で出力します',
+    copyScript: '📋 台本テキストをコピー',
+    copyScriptTooltip: '漫画家・編集者向けの台本（文字コンテ）形式テキストをクリップボードにコピーします',
+    copiedScript: '✓ コピーしました！',
+    downloadScript: '📄 台本ファイルを保存 (.txt)',
+    downloadScriptTooltip: '台本（文字コンテ）形式テキストを .txt ファイルとしてダウンロード保存します',
     editedBadge: '✎ 手直し済',
     confirmOverwriteDirty:
       '右カラムで手動編集した内容は上書きリセットされます。AIで新しく再生成しますか？',
@@ -307,58 +311,125 @@ function getTensionTierLabel(tension: number, lang: Language): string {
   return 'HIGH (2-3 Panels / Impact)';
 }
 
-// ネーム指示書（StoryboardResult）を読みやすいMarkdown形式のテキストに変換するヘルパー関数
-function formatStoryboardAsMarkdown(
+// ダウンロード保存時のファイル名用にタイトル文字列を安全に整形するヘルパー（日本語文字も維持）
+function sanitizeFilenameTitle(rawTitle: string, lang: Language): string {
+  const cleaned = rawTitle
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, '_');
+  return cleaned || (lang === 'ja' ? '無題' : 'storydaw-project');
+}
+
+// 漫画家・編集者がすぐ読める「脚本・文字コンテ（台本）形式」のプレーンテキストを生成する関数
+function formatStoryboardAsScript(
   worldLock: WorldLock,
+  blocks: StoryBlock[],
   storyboard: StoryboardResult,
   lang: Language
 ): string {
   const isJa = lang === 'ja';
   const lines: string[] = [];
+  const titleText = worldLock.title.trim() || (isJa ? '無題' : 'Untitled Project');
+  const settingText = worldLock.setting.trim() || (isJa ? '（未設定）' : '(Not specified)');
+  const themeText = worldLock.theme.trim() || (isJa ? '（未設定）' : '(Not specified)');
 
-  lines.push(
-    `# ${worldLock.title || (isJa ? '無題プロジェクト' : 'Untitled Project')} — ${
-      isJa ? 'ネーム指示書 (Storyboard Brief)' : 'Storyboard Brief'
-    }`
-  );
+  lines.push('==================================================');
+  lines.push(isJa ? `【作品タイトル】${titleText}` : `[PROJECT TITLE] ${titleText}`);
+  lines.push('==================================================');
+  lines.push(isJa ? '■ 舞台・世界観設定' : '■ WORLD SETTING');
+  lines.push(settingText);
   lines.push('');
-  lines.push(`- **${isJa ? '舞台・世界観設定' : 'Setting'}**: ${worldLock.setting || '-'}`);
-  lines.push(`- **${isJa ? '物語の軸・テーマ' : 'Theme'}**: ${worldLock.theme || '-'}`);
-  if (worldLock.characters.length > 0) {
-    lines.push(`- **${isJa ? '登場キャラクター' : 'Characters'}**:`);
-    for (const c of worldLock.characters) {
-      if (c.name || c.role || c.traits) {
-        lines.push(`  - **${c.name || 'Unnamed'}** (${c.role || '-'}): ${c.traits || '-'}`);
+  lines.push(isJa ? '■ 物語の軸・テーマ' : '■ CORE THEME');
+  lines.push(themeText);
+  lines.push('');
+  lines.push(isJa ? '■ 登場キャラクター' : '■ CHARACTERS');
+  const activeChars = worldLock.characters.filter(
+    (c) => c.name.trim() || c.role.trim() || c.traits.trim()
+  );
+  if (activeChars.length === 0) {
+    lines.push(isJa ? '・（未登録）' : '- (No characters registered)');
+  } else {
+    for (const c of activeChars) {
+      const name = c.name.trim() || (isJa ? '名称未設定' : 'Unnamed');
+      const role = c.role.trim() || '-';
+      const traits = c.traits.trim() || '-';
+      if (isJa) {
+        lines.push(`・${name}（${role}）：${traits}`);
+      } else {
+        lines.push(`- ${name} (${role}): ${traits}`);
       }
     }
   }
   lines.push('');
-  lines.push('---');
-  lines.push('');
 
-  for (const page of storyboard.pages) {
+  if (storyboard.pages.length === 0) {
+    // ネーム未生成時に保存された場合は起承転結プロット構成を出力
+    lines.push('==================================================');
     lines.push(
-      `## Page ${page.pageNumber} [${getBlockShortLabel(page.blockType, lang)}] — Tension: ${
-        page.appliedTension
-      }/100`
+      isJa
+        ? '■ 起承転結プロット構成（※ネーム指示書は未生成です）'
+        : '■ KI-SHO-TEN-KETSU PLOT OUTLINE (*Storyboard panels not generated yet)'
     );
-    lines.push(`> ${page.pageSummary}`);
-    lines.push('');
-
-    for (const panel of page.panels) {
-      lines.push(
-        `### Panel #${panel.panelNumber} [${panel.size.toUpperCase()}] | ${
-          isJa ? 'カメラ' : 'Camera'
-        }: ${panel.camera}`
-      );
-      lines.push(`- **${isJa ? '構図・演技指示' : 'Composition'}**: ${panel.composition}`);
-      if (panel.dialogues.length > 0) {
-        lines.push(`- **${isJa ? 'セリフ・効果音' : 'Dialogues & SFX'}**:`);
-        for (const dlg of panel.dialogues) {
-          lines.push(`  - [${dlg.type.toUpperCase()}] **${dlg.character}**: "${dlg.text}"`);
-        }
+    lines.push('--------------------------------------------------');
+    for (const b of blocks) {
+      const blockLabel = getBlockLabelByLang(b.type, lang);
+      const eventText = b.event.trim() || (isJa ? '（未入力）' : '(Empty)');
+      if (isJa) {
+        lines.push(`【${blockLabel}】 [ページ数: ${b.pages}p / TENSION: ${b.tension}]`);
+        lines.push(`  ${eventText}`);
+      } else {
+        lines.push(`[${blockLabel}] [Pages: ${b.pages}p / TENSION: ${b.tension}]`);
+        lines.push(`  ${eventText}`);
       }
       lines.push('');
+    }
+  } else {
+    for (const page of storyboard.pages) {
+      const blockTypeLabel = getBlockShortLabel(page.blockType, lang);
+      lines.push('==================================================');
+      if (isJa) {
+        lines.push(
+          `■ PAGE ${page.pageNumber} [${blockTypeLabel}] （TENSION: ${page.appliedTension} / 全${page.panels.length}コマ）`
+        );
+        lines.push(`ページ演出要約: ${page.pageSummary}`);
+      } else {
+        lines.push(
+          `■ PAGE ${page.pageNumber} [${blockTypeLabel}] (TENSION: ${page.appliedTension} / Total ${page.panels.length} Panels)`
+        );
+        lines.push(`Page Summary: ${page.pageSummary}`);
+      }
+      lines.push('--------------------------------------------------');
+
+      for (const panel of page.panels) {
+        if (isJa) {
+          lines.push(
+            `【${panel.panelNumber}コマ目】 [サイズ: ${panel.size.toUpperCase()} / カメラ: ${panel.camera}]`
+          );
+          lines.push(`  《画面・作画指示》 ${panel.composition}`);
+        } else {
+          lines.push(
+            `[Panel ${panel.panelNumber}] [Size: ${panel.size.toUpperCase()} / Camera: ${panel.camera}]`
+          );
+          lines.push(`  <Composition & Action> ${panel.composition}`);
+        }
+
+        for (const dlg of panel.dialogues) {
+          if (dlg.type === 'sfx') {
+            lines.push(isJa ? `  （効果音/SFX） ${dlg.text}` : `  (SFX) ${dlg.text}`);
+          } else if (dlg.type === 'monologue') {
+            lines.push(
+              isJa
+                ? `  ${dlg.character}（M）「${dlg.text}」`
+                : `  ${dlg.character} (M): "${dlg.text}"`
+            );
+          } else {
+            lines.push(
+              isJa ? `  ${dlg.character}「${dlg.text}」` : `  ${dlg.character}: "${dlg.text}"`
+            );
+          }
+        }
+        lines.push('');
+      }
     }
   }
 
@@ -729,7 +800,7 @@ export function App() {
     });
   };
 
-  // プロジェクト全体をJSONファイルとしてエクスポートするハンドラ
+  // プロジェクト全体をJSONファイルとしてエクスポートするハンドラ（システム連携・バックアップ用）
   const handleExportJson = () => {
     const exportPayload = {
       exportedAt: new Date().toISOString(),
@@ -743,12 +814,12 @@ export function App() {
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const safeTitle = (latestWorldLockRef.current.title || 'storydaw-project')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const safeTitle = sanitizeFilenameTitle(
+      latestWorldLockRef.current.title,
+      latestLangRef.current
+    );
     a.href = url;
-    a.download = `${safeTitle || 'storydaw-project'}-storyboard.json`;
+    a.download = `${safeTitle}-storyboard.json`;
     a.click();
     URL.revokeObjectURL(url);
     setStatusState({
@@ -757,20 +828,48 @@ export function App() {
     });
   };
 
-  // 右カラムのネーム指示書テキストをMarkdown形式でクリップボードにコピーするハンドラ
-  const handleCopyBriefText = async () => {
-    if (storyboard.pages.length === 0) return;
-    const formattedText = formatStoryboardAsMarkdown(
+  // 台本形式テキスト（.txt）を {タイトル}-script.txt としてダウンロード保存するハンドラ
+  const handleDownloadScriptTxt = () => {
+    const formattedScript = formatStoryboardAsScript(
       latestWorldLockRef.current,
+      latestBlocksRef.current,
+      storyboard,
+      latestLangRef.current
+    );
+    const blob = new Blob([formattedScript], {
+      type: 'text/plain;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeTitle = sanitizeFilenameTitle(
+      latestWorldLockRef.current.title,
+      latestLangRef.current
+    );
+    a.href = url;
+    a.download = `${safeTitle}-script.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatusState({
+      ja: `📄 台本ファイル（${safeTitle}-script.txt）を保存しました`,
+      en: `📄 Downloaded script file (${safeTitle}-script.txt).`,
+    });
+  };
+
+  // 右カラムのネーム指示書を台本形式テキストでクリップボードにコピーするハンドラ
+  const handleCopyScriptText = async () => {
+    if (storyboard.pages.length === 0) return;
+    const formattedScript = formatStoryboardAsScript(
+      latestWorldLockRef.current,
+      latestBlocksRef.current,
       storyboard,
       latestLangRef.current
     );
     try {
-      await navigator.clipboard.writeText(formattedText);
+      await navigator.clipboard.writeText(formattedScript);
       setCopiedFeedback(true);
       setStatusState({
-        ja: '📋 指示書テキストをクリップボードにコピーしました！',
-        en: '📋 Copied storyboard brief to clipboard!',
+        ja: '📋 台本テキストをクリップボードにコピーしました！',
+        en: '📋 Copied script text to clipboard!',
       });
       setTimeout(() => {
         setCopiedFeedback(false);
@@ -1181,6 +1280,26 @@ export function App() {
             className="text-xs font-bold uppercase px-2.5 py-1 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] active:translate-y-0.5 transition cursor-pointer"
           >
             {t.saveLocal}
+          </button>
+
+          {/* 台本ファイル (.txt) 保存ボタン */}
+          <button
+            type="button"
+            onClick={handleDownloadScriptTxt}
+            title={t.downloadScriptTooltip}
+            className="text-xs font-bold uppercase px-2.5 py-1 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 active:translate-y-0.5 transition cursor-pointer"
+          >
+            {t.downloadScript}
+          </button>
+
+          {/* システム連携・バックアップ用 JSON出力ボタン */}
+          <button
+            type="button"
+            onClick={handleExportJson}
+            title={t.exportJsonTooltip}
+            className="text-xs font-bold uppercase px-2.5 py-1 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] active:translate-y-0.5 transition cursor-pointer"
+          >
+            {t.exportJson}
           </button>
         </div>
       </header>
@@ -1617,23 +1736,33 @@ export function App() {
                 </p>
               </div>
 
-              {/* 右カラム出力アクションボタン群（指示書テキストをコピー / JSON出力 / Diff比較） */}
+              {/* 右カラム出力アクションボタン群（台本テキストをコピー / 台本ファイル保存(.txt) / JSON出力 / Diff比較） */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={handleCopyBriefText}
+                  onClick={handleCopyScriptText}
                   disabled={storyboard.pages.length === 0}
-                  title={t.copyBriefTooltip}
+                  title={t.copyScriptTooltip}
                   className="text-[11px] font-bold uppercase px-2.5 py-1 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] disabled:opacity-40 active:translate-y-0.5 transition cursor-pointer disabled:cursor-not-allowed"
                 >
-                  {copiedFeedback ? t.copiedBrief : t.copyBrief}
+                  {copiedFeedback ? t.copiedScript : t.copyScript}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadScriptTxt}
+                  disabled={storyboard.pages.length === 0}
+                  title={t.downloadScriptTooltip}
+                  className="text-[11px] font-bold uppercase px-2.5 py-1 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 disabled:opacity-40 active:translate-y-0.5 transition cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {t.downloadScript}
                 </button>
 
                 <button
                   type="button"
                   onClick={handleExportJson}
                   title={t.exportJsonTooltip}
-                  className="text-[11px] font-bold uppercase px-2.5 py-1 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 active:translate-y-0.5 transition cursor-pointer"
+                  className="text-[11px] font-bold uppercase px-2.5 py-1 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] active:translate-y-0.5 transition cursor-pointer"
                 >
                   {t.exportJson}
                 </button>
