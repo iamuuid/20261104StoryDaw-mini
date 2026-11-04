@@ -22,8 +22,12 @@ const UI_DICT = {
     confirmNewBlank: 'Clear all inputs and start a new blank project?',
     resetPreset: 'Reset to Preset',
     saveLocal: 'Save to Local',
-    exportJson: 'Export JSON',
-    worldLockHeader: 'WORLD LOCK (FIXED CONSTANTS)',
+    exportJson: 'EXPORT JSON',
+    copyBrief: '📋 COPY BRIEF',
+    copiedBrief: '✓ COPIED!',
+    confirmOverwriteDirty:
+      'Your manual edits in the right column will be overwritten. Regenerate with AI?',
+    worldLockHeader: 'STEP 1: WORLD LOCK (FIXED CONSTANTS)',
     worldLockSub: 'Locked Constants for AI',
     immutableBadge: 'Immutable',
     projectTitle: 'PROJECT TITLE',
@@ -42,7 +46,7 @@ const UI_DICT = {
     charTraits: 'Traits & Speech Pattern',
     charTraitsPlaceholder: 'Personality, visual traits, speech style...',
     noCharactersHint: 'No characters added yet. Click "+ ADD CHARACTER" above.',
-    timelineHeader: 'KI-SHO-TEN-KETSU & TENSION CURVE',
+    timelineHeader: 'STEP 2: KI-SHO-TEN-KETSU & TENSION CURVE',
     timelineSub: 'DAW Automation Lane — Controls Panel Density & Camera',
     tracksBadge: '4 Tracks',
     tensionCurveTitle: 'TENSION CURVE (REAL-TIME)',
@@ -54,9 +58,9 @@ const UI_DICT = {
     charactersInScene: 'CHARACTERS IN SCENE',
     generateBtn: '▶ GENERATE STORYBOARD BRIEF (META MUSE API)',
     generatingBtn: 'Generating Storyboard Brief...',
-    viewerHeader: 'STORYBOARD BRIEF VIEWER (TEXT-ONLY BLUEPRINT)',
-    viewerSubPrefix: 'Engine:',
-    viewerSubSuffix: '— Inline Editable',
+    viewerHeader: 'STEP 3: STORYBOARD BRIEF VIEWER (TOUCH-UP & EXPORT)',
+    viewerSubText:
+      'Final human touch-up area for AI-generated storyboards (Click any field to edit before export)',
     showDiff: 'SHOW DIFF (BEFORE / AFTER)',
     allPages: 'All Pages',
     presetReadyTitle: 'Preset Loaded — Ready to Generate',
@@ -87,7 +91,11 @@ const UI_DICT = {
     resetPreset: 'プリセットに戻す',
     saveLocal: 'ローカル保存',
     exportJson: 'JSON出力',
-    worldLockHeader: '世界観ロック（AI変更不可の固定設定）',
+    copyBrief: '📋 指示書テキストをコピー',
+    copiedBrief: '✓ コピーしました！',
+    confirmOverwriteDirty:
+      '右カラムで手動編集した内容は上書きリセットされます。AIで新しく再生成しますか？',
+    worldLockHeader: 'STEP 1: 世界観ロック（AI変更不可の固定設定）',
     worldLockSub: 'AIが改変しない絶対ルール',
     immutableBadge: '固定定数',
     projectTitle: '作品タイトル',
@@ -106,7 +114,7 @@ const UI_DICT = {
     charTraits: '特徴・口調・外見',
     charTraitsPlaceholder: '性格、口調、外見の特徴などを入力...',
     noCharactersHint: 'キャラクターが未登録です。「+ キャラ追加」から追加できます。',
-    timelineHeader: '起承転結ブロック ＆ 緊張度グラフ',
+    timelineHeader: 'STEP 2: 起承転結ブロック ＆ 緊張度グラフ',
     timelineSub: 'DAWオートメーション — コマ数・サイズ・カメラを自動制御',
     tracksBadge: '全4トラック',
     tensionCurveTitle: '緊張度カーブ（リアルタイム連動）',
@@ -118,9 +126,9 @@ const UI_DICT = {
     charactersInScene: '登場キャラ',
     generateBtn: '▶ ネーム指示書を生成（Meta Muse API）',
     generatingBtn: 'ネーム指示書を生成中...',
-    viewerHeader: 'ネーム指示書ビューア（文字コンテ設計図）',
-    viewerSubPrefix: '生成エンジン:',
-    viewerSubSuffix: '— 全項目クリックで直接編集可能',
+    viewerHeader: 'STEP 3: ネーム指示書ビューア（生成結果の手直し・出力）',
+    viewerSubText:
+      'AI生成されたネームを人間が最終調整する清書エリアです（全項目クリックで直接編集可能）',
     showDiff: '前後比較（Diff表示）',
     allPages: '全ページ表示',
     presetReadyTitle: 'プリセット読込完了（未生成）',
@@ -233,6 +241,64 @@ function getTensionTierLabel(tension: number, lang: Language): string {
   return 'HIGH (2-3 Panels / Impact)';
 }
 
+// ネーム指示書（StoryboardResult）を読みやすいMarkdown形式のテキストに変換するヘルパー関数
+function formatStoryboardAsMarkdown(
+  worldLock: WorldLock,
+  storyboard: StoryboardResult,
+  lang: Language
+): string {
+  const isJa = lang === 'ja';
+  const lines: string[] = [];
+
+  lines.push(
+    `# ${worldLock.title || (isJa ? '無題プロジェクト' : 'Untitled Project')} — ${
+      isJa ? 'ネーム指示書 (Storyboard Brief)' : 'Storyboard Brief'
+    }`
+  );
+  lines.push('');
+  lines.push(`- **${isJa ? '舞台・世界観設定' : 'Setting'}**: ${worldLock.setting || '-'}`);
+  lines.push(`- **${isJa ? '物語の軸・テーマ' : 'Theme'}**: ${worldLock.theme || '-'}`);
+  if (worldLock.characters.length > 0) {
+    lines.push(`- **${isJa ? '登場キャラクター' : 'Characters'}**:`);
+    for (const c of worldLock.characters) {
+      if (c.name || c.role || c.traits) {
+        lines.push(`  - **${c.name || 'Unnamed'}** (${c.role || '-'}): ${c.traits || '-'}`);
+      }
+    }
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  for (const page of storyboard.pages) {
+    lines.push(
+      `## Page ${page.pageNumber} [${getBlockShortLabel(page.blockType, lang)}] — Tension: ${
+        page.appliedTension
+      }/100`
+    );
+    lines.push(`> ${page.pageSummary}`);
+    lines.push('');
+
+    for (const panel of page.panels) {
+      lines.push(
+        `### Panel #${panel.panelNumber} [${panel.size.toUpperCase()}] | ${
+          isJa ? 'カメラ' : 'Camera'
+        }: ${panel.camera}`
+      );
+      lines.push(`- **${isJa ? '構図・演技指示' : 'Composition'}**: ${panel.composition}`);
+      if (panel.dialogues.length > 0) {
+        lines.push(`- **${isJa ? 'セリフ・効果音' : 'Dialogues & SFX'}**:`);
+        for (const dlg of panel.dialogues) {
+          lines.push(`  - [${dlg.type.toUpperCase()}] **${dlg.character}**: "${dlg.text}"`);
+        }
+      }
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
 export function App() {
   // 言語状態（初期値はテスト・確認しやすいよう 'ja'）
   const [lang, setLang] = useState<Language>(() => {
@@ -255,6 +321,20 @@ export function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.hasUserEdited === 'boolean') return parsed.hasUserEdited;
+      }
+    } catch {
+      // 無視
+    }
+    return false;
+  });
+
+  // 右カラム（ネーム指示書）を人間が手動でインライン編集したかどうかを追跡（再生成時の上書き確認用）
+  const [isStoryboardDirty, setIsStoryboardDirty] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.isStoryboardDirty === 'boolean') return parsed.isStoryboardDirty;
       }
     } catch {
       // 無視
@@ -331,8 +411,8 @@ export function App() {
   const [activePageTab, setActivePageTab] = useState<number | 'all'>(0);
   const [showDiff, setShowDiff] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [copiedFeedback, setCopiedFeedback] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('準備完了 — プリセット読込済（未生成）');
-  const [generationMode, setGenerationMode] = useState<string>('Standby (未生成)');
 
   const t = UI_DICT[lang];
 
@@ -355,6 +435,7 @@ export function App() {
         JSON.stringify({
           lang,
           hasUserEdited,
+          isStoryboardDirty,
           worldLock,
           blocks,
           storyboard,
@@ -364,7 +445,7 @@ export function App() {
     } catch {
       // localStorage容量制限等は無視
     }
-  }, [lang, hasUserEdited, worldLock, blocks, storyboard, previousStoryboard]);
+  }, [lang, hasUserEdited, isStoryboardDirty, worldLock, blocks, storyboard, previousStoryboard]);
 
   // WorldLockのトップレベルフィールド（title, setting, theme）更新ハンドラ
   const handleUpdateWorldField = (field: 'title' | 'setting' | 'theme', value: string) => {
@@ -432,6 +513,7 @@ export function App() {
     const blankBlocks = createBlankBlocks(lang);
 
     setHasUserEdited(true);
+    setIsStoryboardDirty(false);
     setWorldLock(blankWorldLock);
     latestWorldLockRef.current = blankWorldLock;
     setBlocks(blankBlocks);
@@ -440,7 +522,6 @@ export function App() {
     setStoryboard({ pages: [] });
     setActivePageTab(0);
     setShowDiff(false);
-    setGenerationMode(lang === 'ja' ? '未生成（新規キャンバス）' : 'Blank Canvas');
     setStatusMessage(
       lang === 'ja'
         ? '入力内容をクリアして新規作成モードにしました'
@@ -456,6 +537,7 @@ export function App() {
         JSON.stringify({
           lang: latestLangRef.current,
           hasUserEdited,
+          isStoryboardDirty,
           worldLock: latestWorldLockRef.current,
           blocks: latestBlocksRef.current,
           storyboard,
@@ -478,6 +560,7 @@ export function App() {
   const handleResetToPreset = () => {
     const preset = getPresetByLang(lang);
     setHasUserEdited(false);
+    setIsStoryboardDirty(false);
     setWorldLock(preset.worldLock);
     latestWorldLockRef.current = preset.worldLock;
     setBlocks(preset.blocks);
@@ -486,7 +569,6 @@ export function App() {
     setStoryboard({ pages: [] });
     setActivePageTab(0);
     setShowDiff(false);
-    setGenerationMode(lang === 'ja' ? 'Standby (未生成)' : 'Standby (Ungenerated)');
     setStatusMessage(
       lang === 'ja'
         ? '初期プリセット「ネオン・ラーメン 2099」を読み込みました（未生成）'
@@ -517,6 +599,32 @@ export function App() {
     a.click();
     URL.revokeObjectURL(url);
     setStatusMessage(lang === 'ja' ? 'JSONファイルを出力しました' : 'Exported JSON file');
+  };
+
+  // 右カラムのネーム指示書テキストをMarkdown形式でクリップボードにコピーするハンドラ
+  const handleCopyBriefText = async () => {
+    if (storyboard.pages.length === 0) return;
+    const formattedText = formatStoryboardAsMarkdown(
+      latestWorldLockRef.current,
+      storyboard,
+      latestLangRef.current
+    );
+    try {
+      await navigator.clipboard.writeText(formattedText);
+      setCopiedFeedback(true);
+      setStatusMessage(
+        lang === 'ja'
+          ? '📋 指示書テキストをクリップボードにコピーしました！'
+          : '📋 Copied storyboard brief text to clipboard!'
+      );
+      setTimeout(() => {
+        setCopiedFeedback(false);
+      }, 2200);
+    } catch {
+      setStatusMessage(
+        lang === 'ja' ? 'クリップボードへのコピーに失敗しました' : 'Failed to copy to clipboard'
+      );
+    }
   };
 
   // キャラクターの更新・追加・削除ハンドラ
@@ -630,8 +738,14 @@ export function App() {
   };
 
   // バックエンドAPI (/api/generate) を呼び出してネーム指示書を生成するハンドラ
-  // 新規作成時・プリセット編集時ともに同一のフローで最新のState（latestWorldLockRef / latestBlocksRef）を送信する
   const handleGenerateStoryboard = async () => {
+    // 右カラムで人間が手動編集した状態（dirty状態）の場合は上書き確認ダイアログを表示
+    if (isStoryboardDirty && storyboard.pages.length > 0) {
+      if (!window.confirm(t.confirmOverwriteDirty)) {
+        return;
+      }
+    }
+
     const currentWorldLock = latestWorldLockRef.current;
     const currentBlocks = latestBlocksRef.current;
     const currentLang = latestLangRef.current;
@@ -662,7 +776,6 @@ export function App() {
         throw new Error(`API returned status ${response.status}`);
       }
 
-      const modeHeader = response.headers.get('X-StoryDAW-Mode') || 'api';
       const result = (await response.json()) as StoryboardResult;
 
       if (result && Array.isArray(result.pages)) {
@@ -670,14 +783,8 @@ export function App() {
           setPreviousStoryboard(snapshotBefore);
         }
         setStoryboard(result);
+        setIsStoryboardDirty(false);
         setActivePageTab(0);
-        setGenerationMode(
-          modeHeader === 'meta-muse-api'
-            ? 'Meta Muse API (Live)'
-            : currentLang === 'ja'
-            ? 'Dynamic Tension Engine (最新入力反映)'
-            : 'Dynamic Tension Engine (Live Input)'
-        );
         setStatusMessage(
           currentLang === 'ja'
             ? `「${currentWorldLock.title || '無題'}」の全${result.pages.length}ページを生成しました。`
@@ -695,8 +802,9 @@ export function App() {
     }
   };
 
-  // 右カラム：ページ要約のインライン編集ハンドラ
+  // 右カラム：ページ要約のインライン編集ハンドラ（dirtyフラグをON）
   const handleUpdatePageSummary = (pageIndex: number, newSummary: string) => {
+    setIsStoryboardDirty(true);
     setStoryboard((prev) => ({
       ...prev,
       pages: prev.pages.map((p, idx) =>
@@ -705,13 +813,14 @@ export function App() {
     }));
   };
 
-  // 右カラム：コマ（PanelBrief）のインライン編集ハンドラ
+  // 右カラム：コマ（PanelBrief）のインライン編集ハンドラ（dirtyフラグをON）
   const handleUpdatePanel = <K extends keyof PanelBrief>(
     pageIndex: number,
     panelIndex: number,
     field: K,
     value: PanelBrief[K]
   ) => {
+    setIsStoryboardDirty(true);
     setStoryboard((prev) => ({
       ...prev,
       pages: prev.pages.map((page, pIdx) => {
@@ -726,7 +835,7 @@ export function App() {
     }));
   };
 
-  // 右カラム：セリフ（Dialogue）のインライン編集ハンドラ
+  // 右カラム：セリフ（Dialogue）のインライン編集ハンドラ（dirtyフラグをON）
   const handleUpdateDialogue = <K extends keyof Dialogue>(
     pageIndex: number,
     panelIndex: number,
@@ -734,6 +843,7 @@ export function App() {
     field: K,
     value: Dialogue[K]
   ) => {
+    setIsStoryboardDirty(true);
     setStoryboard((prev) => ({
       ...prev,
       pages: prev.pages.map((page, pIdx) => {
@@ -754,8 +864,9 @@ export function App() {
     }));
   };
 
-  // 右カラム：セリフ行の追加・削除ハンドラ
+  // 右カラム：セリフ行の追加・削除ハンドラ（dirtyフラグをON）
   const handleAddDialogue = (pageIndex: number, panelIndex: number) => {
+    setIsStoryboardDirty(true);
     const defaultSpeaker =
       worldLock.characters[0]?.name?.trim() || (lang === 'ja' ? 'キャラ' : 'Character');
     setStoryboard((prev) => ({
@@ -784,6 +895,7 @@ export function App() {
   };
 
   const handleRemoveDialogue = (pageIndex: number, panelIndex: number, dialogueIndex: number) => {
+    setIsStoryboardDirty(true);
     setStoryboard((prev) => ({
       ...prev,
       pages: prev.pages.map((page, pIdx) => {
@@ -912,19 +1024,12 @@ export function App() {
           >
             {t.saveLocal}
           </button>
-          <button
-            type="button"
-            onClick={handleExportJson}
-            className="text-xs font-bold uppercase px-2.5 py-1 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 active:translate-y-0.5 transition cursor-pointer"
-          >
-            {t.exportJson}
-          </button>
         </div>
       </header>
 
       {/* Main 3-Column DAW Layout (残り画面高さを100%使い、各カラムが独立スクロール) */}
       <main className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 max-w-[1920px] w-full mx-auto overflow-hidden">
-        {/* 2. Left Column: World Lock Panel (Fixed Constants) */}
+        {/* 2. Left Column: STEP 1: World Lock Panel */}
         <section className="lg:col-span-3 h-full min-h-0 bg-[#FFFFFF] border-2 border-[#18181B] flex flex-col overflow-hidden">
           {/* カラムヘッダー (固定) */}
           <div className="shrink-0 p-3 border-b-2 border-[#18181B] bg-[#FFFFFF] flex items-center justify-between">
@@ -1078,7 +1183,7 @@ export function App() {
           </div>
         </section>
 
-        {/* 3. Center Column: Ki-Sho-Ten-Ketsu Timeline & Tension Graph */}
+        {/* 3. Center Column: STEP 2: Ki-Sho-Ten-Ketsu Timeline & Tension Graph */}
         <section className="lg:col-span-4 h-full min-h-0 bg-[#FFFFFF] border-2 border-[#18181B] flex flex-col overflow-hidden">
           {/* 上部固定エリア: カラムヘッダー + Tension Line Graph (常時表示) */}
           <div className="shrink-0 p-3 border-b-2 border-[#18181B] bg-[#FFFFFF] flex flex-col gap-2">
@@ -1331,29 +1436,46 @@ export function App() {
           </div>
         </section>
 
-        {/* 4. Right Column: Storyboard Brief Viewer (Text-Only Output) */}
+        {/* 4. Right Column: STEP 3: Storyboard Brief Viewer (Touch-Up & Export) */}
         <section className="lg:col-span-5 h-full min-h-0 bg-[#FFFFFF] border-2 border-[#18181B] flex flex-col overflow-hidden">
-          {/* 右カラム上部固定ヘッダー + ページ切り替えタブ */}
+          {/* 右カラム上部固定ヘッダー + 出力アクションバー + ページ切り替えタブ */}
           <div className="shrink-0 p-3 border-b-2 border-[#18181B] bg-[#FFFFFF] flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h2 className="text-xs font-black uppercase tracking-wider">{t.viewerHeader}</h2>
-                <p className="text-[10px] font-mono text-[#18181B]/70">
-                  {t.viewerSubPrefix}{' '}
-                  <strong className="text-[#2563EB]">{generationMode}</strong> {t.viewerSubSuffix}
-                </p>
+                <p className="text-[10px] text-[#2563EB] font-bold mt-0.5">{t.viewerSubText}</p>
               </div>
 
-              {/* Diff View (Before / After) トグル */}
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase px-2.5 py-1 border-2 border-[#18181B] bg-[#FAFAFA] cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showDiff}
-                  onChange={(e) => setShowDiff(e.target.checked)}
-                  className="accent-[#2563EB] w-3.5 h-3.5 cursor-pointer"
-                />
-                <span>{t.showDiff}</span>
-              </label>
+              {/* 右カラム出力アクションボタン群（指示書テキストをコピー / JSON出力 / Diff比較） */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleCopyBriefText}
+                  disabled={storyboard.pages.length === 0}
+                  className="text-[11px] font-bold uppercase px-2.5 py-1 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] disabled:opacity-40 active:translate-y-0.5 transition cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {copiedFeedback ? t.copiedBrief : t.copyBrief}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportJson}
+                  className="text-[11px] font-bold uppercase px-2.5 py-1 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 active:translate-y-0.5 transition cursor-pointer"
+                >
+                  {t.exportJson}
+                </button>
+
+                {/* Diff View (Before / After) トグル */}
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase px-2 py-1 border-2 border-[#18181B] bg-[#FAFAFA] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showDiff}
+                    onChange={(e) => setShowDiff(e.target.checked)}
+                    className="accent-[#2563EB] w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span>{t.showDiff}</span>
+                </label>
+              </div>
             </div>
 
             {/* ページ切り替えタブバー (ページが存在する場合のみ表示) */}
