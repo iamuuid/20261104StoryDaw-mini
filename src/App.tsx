@@ -22,6 +22,8 @@ const UI_DICT = {
   en: {
     subtitle:
       'Visual Story Structure & Text-Only Manga Storyboard Designer powered by Meta Muse',
+    newBlank: 'NEW BLANK',
+    confirmNewBlank: 'Clear all inputs and start a new blank project?',
     resetPreset: 'Reset to Preset',
     saveLocal: 'Save to Local',
     exportJson: 'Export JSON',
@@ -29,14 +31,21 @@ const UI_DICT = {
     worldLockSub: 'Locked Constants for AI',
     immutableBadge: 'Immutable',
     projectTitle: 'PROJECT TITLE',
+    projectTitlePlaceholder: 'Enter project title...',
     worldSetting: 'WORLD SETTING',
+    worldSettingPlaceholder: 'Describe world setting, era, and rules...',
     coreTheme: 'CORE THEME',
+    coreThemePlaceholder: 'Describe central theme or emotional core...',
     lockedCharacters: 'LOCKED CHARACTERS',
     addCharacter: '+ ADD CHARACTER',
     removeChar: 'Remove',
     charName: 'Name',
+    charNamePlaceholder: 'Character name...',
     charRole: 'Role',
+    charRolePlaceholder: 'Role in the story...',
     charTraits: 'Traits & Speech Pattern',
+    charTraitsPlaceholder: 'Personality, visual traits, speech style...',
+    noCharactersHint: 'No characters added yet. Click "+ ADD CHARACTER" above.',
     timelineHeader: 'KI-SHO-TEN-KETSU & TENSION CURVE',
     timelineSub: 'DAW Automation Lane — Controls Panel Density & Camera',
     tracksBadge: '4 Tracks',
@@ -45,6 +54,7 @@ const UI_DICT = {
     tensionLabel: 'TENSION',
     pagesLabel: 'Pages',
     sceneEvent: 'SCENE EVENT / PLOT BEAT',
+    sceneEventPlaceholder: 'Describe what happens in this block...',
     charactersInScene: 'CHARACTERS IN SCENE',
     generateBtn: '▶ GENERATE STORYBOARD BRIEF (META MUSE API)',
     generatingBtn: 'Generating Storyboard Brief...',
@@ -53,6 +63,9 @@ const UI_DICT = {
     viewerSubSuffix: '— Inline Editable',
     showDiff: 'SHOW DIFF (BEFORE / AFTER)',
     allPages: 'All Pages',
+    emptyViewerTitle: 'Blank Storyboard Canvas',
+    emptyViewerBody:
+      'Fill in the World Lock (left column) and Ki-Sho-Ten-Ketsu tracks (center column), then click "▶ GENERATE STORYBOARD BRIEF (META MUSE API)" to generate your storyboard blueprint.',
     diffWaitingTitle: 'Diff View Ready — Waiting for Regeneration',
     diffWaitingBody:
       'Adjust any block’s Tension slider in the center column and click "GENERATE STORYBOARD BRIEF (META MUSE API)" to compare Before vs. After panel counts, sizes, camera angles, and dialogue side-by-side.',
@@ -70,6 +83,8 @@ const UI_DICT = {
   ja: {
     subtitle:
       'Meta Muse 搭載 — 物語構造（起承転結・緊張度）＆ 文字コンテ（ネーム指示書）設計ツール',
+    newBlank: '新規作成',
+    confirmNewBlank: '入力内容をクリアして新規作成しますか？',
     resetPreset: 'プリセットに戻す',
     saveLocal: 'ローカル保存',
     exportJson: 'JSON出力',
@@ -77,14 +92,21 @@ const UI_DICT = {
     worldLockSub: 'AIが改変しない絶対ルール',
     immutableBadge: '固定定数',
     projectTitle: '作品タイトル',
+    projectTitlePlaceholder: '作品タイトルを入力...',
     worldSetting: '舞台・世界観設定',
+    worldSettingPlaceholder: '時代背景、舞台、世界のルールなどを入力...',
     coreTheme: '物語の軸・テーマ',
+    coreThemePlaceholder: '物語を貫くテーマや描きたい感情を入力...',
     lockedCharacters: '固定キャラクター',
     addCharacter: '+ キャラ追加',
     removeChar: '削除',
     charName: '名前',
+    charNamePlaceholder: 'キャラクター名を入力...',
     charRole: '役割・立場',
+    charRolePlaceholder: '主人公、相棒、敵役など...',
     charTraits: '特徴・口調・外見',
+    charTraitsPlaceholder: '性格、口調、外見の特徴などを入力...',
+    noCharactersHint: 'キャラクターが未登録です。「+ キャラ追加」から追加できます。',
     timelineHeader: '起承転結ブロック ＆ 緊張度グラフ',
     timelineSub: 'DAWオートメーション — コマ数・サイズ・カメラを自動制御',
     tracksBadge: '全4トラック',
@@ -93,6 +115,7 @@ const UI_DICT = {
     tensionLabel: '緊張度 (TENSION)',
     pagesLabel: 'ページ数',
     sceneEvent: 'この場面で起きる出来事',
+    sceneEventPlaceholder: 'このパートで起きる出来事・プロットを入力...',
     charactersInScene: '登場キャラ',
     generateBtn: '▶ ネーム指示書を生成（Meta Muse API）',
     generatingBtn: 'ネーム指示書を生成中...',
@@ -101,6 +124,9 @@ const UI_DICT = {
     viewerSubSuffix: '— 全項目クリックで直接編集可能',
     showDiff: '前後比較（Diff表示）',
     allPages: '全ページ表示',
+    emptyViewerTitle: '新規キャンバス（未生成）',
+    emptyViewerBody:
+      '左カラム（世界観ロック）と中央カラム（起承転結トラック）を入力し、下の「▶ ネーム指示書を生成（Meta Muse API）」ボタンを押してください。',
     diffWaitingTitle: '前後比較（Diff）待機中 — 再生成すると比較が表示されます',
     diffWaitingBody:
       '中央カラムの緊張度（Tension）スライダーを変更し、「ネーム指示書を生成（Meta Muse API）」ボタンを押すと、変更前後のコマ数・サイズ・構図・セリフの変化を並べて比較できます。',
@@ -116,6 +142,48 @@ const UI_DICT = {
     sfxType: '効果音(SFX)',
   },
 } as const;
+
+// 新規作成（ブランク）用の初期起承転結トラック生成ヘルパー（標準Tension: 20, 50, 80, 30）
+function createBlankBlocks(lang: Language): StoryBlock[] {
+  return [
+    {
+      id: 'block-ki',
+      type: 'ki',
+      label: lang === 'ja' ? '起（導入）' : 'Ki (Intro)',
+      pages: 1,
+      tension: 20,
+      event: '',
+      characterIds: [],
+    },
+    {
+      id: 'block-sho',
+      type: 'sho',
+      label: lang === 'ja' ? '承（展開）' : 'Sho (Development)',
+      pages: 1,
+      tension: 50,
+      event: '',
+      characterIds: [],
+    },
+    {
+      id: 'block-ten',
+      type: 'ten',
+      label: lang === 'ja' ? '転（山場・転換）' : 'Ten (Climax)',
+      pages: 1,
+      tension: 80,
+      event: '',
+      characterIds: [],
+    },
+    {
+      id: 'block-ketsu',
+      type: 'ketsu',
+      label: lang === 'ja' ? '結（結末・余韻）' : 'Ketsu (Resolution)',
+      pages: 1,
+      tension: 30,
+      event: '',
+      characterIds: [],
+    },
+  ];
+}
 
 // 起承転結トラックの言語別見出し生成ヘルパー
 function getTrackHeaderLabel(index: number, type: BlockType, lang: Language): string {
@@ -212,7 +280,7 @@ export function App() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.storyboard?.pages) return parsed.storyboard;
+        if (Array.isArray(parsed.storyboard?.pages)) return parsed.storyboard;
       }
     } catch {
       // パース失敗時は初期言語サンプルを使用
@@ -307,6 +375,38 @@ export function App() {
     );
   };
 
+  // 新規作成（すべての入力とプレビューを空にクリアする）ハンドラ
+  const handleNewBlank = () => {
+    if (!window.confirm(t.confirmNewBlank)) {
+      return;
+    }
+
+    setWorldLock({
+      title: '',
+      setting: '',
+      theme: '',
+      characters: [
+        {
+          id: `char-${Date.now()}`,
+          name: '',
+          role: '',
+          traits: '',
+        },
+      ],
+    });
+    setBlocks(createBlankBlocks(lang));
+    setPreviousStoryboard(null);
+    setStoryboard({ pages: [] });
+    setActivePageTab(0);
+    setShowDiff(false);
+    setGenerationMode(lang === 'ja' ? '未生成（新規キャンバス）' : 'Blank Canvas');
+    setStatusMessage(
+      lang === 'ja'
+        ? '入力内容をクリアして新規作成モードにしました'
+        : 'Cleared all fields — Ready for new story'
+    );
+  };
+
   // 手動でLocalStorageに保存するハンドラ
   const handleSaveToLocal = () => {
     try {
@@ -368,7 +468,7 @@ export function App() {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
     a.href = url;
-    a.download = `${safeTitle || 'neon-ramen-2099'}-storyboard.json`;
+    a.download = `${safeTitle || 'storydaw-project'}-storyboard.json`;
     a.click();
     URL.revokeObjectURL(url);
     setStatusMessage(lang === 'ja' ? 'JSONファイルを出力しました' : 'Exported JSON file');
@@ -384,20 +484,12 @@ export function App() {
 
   const handleAddCharacter = () => {
     const newId = `char-${Date.now()}`;
-    const newChar: Character =
-      lang === 'ja'
-        ? {
-            id: newId,
-            name: '新規キャラクター',
-            role: 'サブキャラクター',
-            traits: '特徴的なシルエット、簡潔な口調',
-          }
-        : {
-            id: newId,
-            name: 'New Character',
-            role: 'Supporting Role',
-            traits: 'Distinctive silhouette, concise speech',
-          };
+    const newChar: Character = {
+      id: newId,
+      name: '',
+      role: '',
+      traits: '',
+    };
     setWorldLock((prev) => ({
       ...prev,
       characters: [...prev.characters, newChar],
@@ -465,8 +557,9 @@ export function App() {
         : 'Generating storyboard brief via Meta Muse API...'
     );
 
-    // Diff比較用に現在のStoryboardを「Before」として保存
-    const snapshotBefore: StoryboardResult = JSON.parse(JSON.stringify(storyboard));
+    // Diff比較用に現在のStoryboard（ページが存在する場合のみ）を「Before」として保存
+    const snapshotBefore: StoryboardResult | null =
+      storyboard.pages.length > 0 ? JSON.parse(JSON.stringify(storyboard)) : null;
 
     try {
       const response = await fetch('/api/generate', {
@@ -483,8 +576,11 @@ export function App() {
       const result = (await response.json()) as StoryboardResult;
 
       if (result && Array.isArray(result.pages)) {
-        setPreviousStoryboard(snapshotBefore);
+        if (snapshotBefore) {
+          setPreviousStoryboard(snapshotBefore);
+        }
         setStoryboard(result);
+        setActivePageTab(0);
         setGenerationMode(
           modeHeader === 'meta-muse-api'
             ? 'Meta Muse API (Live)'
@@ -570,7 +666,8 @@ export function App() {
 
   // 右カラム：セリフ行の追加・削除ハンドラ
   const handleAddDialogue = (pageIndex: number, panelIndex: number) => {
-    const defaultSpeaker = worldLock.characters[0]?.name || (lang === 'ja' ? 'キャラ' : 'Character');
+    const defaultSpeaker =
+      worldLock.characters[0]?.name?.trim() || (lang === 'ja' ? 'キャラ' : 'Character');
     setStoryboard((prev) => ({
       ...prev,
       pages: prev.pages.map((page, pIdx) => {
@@ -694,6 +791,16 @@ export function App() {
             </button>
           </div>
 
+          {/* 新規作成（クリア）ボタン */}
+          <button
+            type="button"
+            onClick={handleNewBlank}
+            className="text-xs font-bold uppercase px-2.5 py-1 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#18181B] hover:text-white active:translate-y-0.5 transition cursor-pointer"
+          >
+            {t.newBlank}
+          </button>
+
+          {/* プリセットに戻すボタン */}
           <button
             type="button"
             onClick={handleResetToPreset}
@@ -757,6 +864,7 @@ export function App() {
                   type="text"
                   value={worldLock.title}
                   onChange={(e) => setWorldLock({ ...worldLock, title: e.target.value })}
+                  placeholder={t.projectTitlePlaceholder}
                   className="w-full text-xs font-bold px-2 py-1.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                 />
               </div>
@@ -769,6 +877,7 @@ export function App() {
                   rows={3}
                   value={worldLock.setting}
                   onChange={(e) => setWorldLock({ ...worldLock, setting: e.target.value })}
+                  placeholder={t.worldSettingPlaceholder}
                   className="w-full text-xs leading-snug px-2 py-1.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                 />
               </div>
@@ -781,6 +890,7 @@ export function App() {
                   rows={2}
                   value={worldLock.theme}
                   onChange={(e) => setWorldLock({ ...worldLock, theme: e.target.value })}
+                  placeholder={t.coreThemePlaceholder}
                   className="w-full text-xs leading-snug px-2 py-1.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                 />
               </div>
@@ -801,17 +911,21 @@ export function App() {
                 </button>
               </div>
 
-              <div className="flex flex-col gap-2.5">
-                {worldLock.characters.map((char, idx) => (
-                  <div
-                    key={char.id}
-                    className="p-2 bg-[#FAFAFA] border border-[#18181B] flex flex-col gap-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 bg-[#18181B] text-white">
-                        CHAR #{idx + 1}
-                      </span>
-                      {worldLock.characters.length > 1 && (
+              {worldLock.characters.length === 0 ? (
+                <div className="p-2.5 bg-[#FAFAFA] border border-dashed border-[#18181B] text-[11px] text-[#18181B]/70 font-mono">
+                  {t.noCharactersHint}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {worldLock.characters.map((char, idx) => (
+                    <div
+                      key={char.id}
+                      className="p-2 bg-[#FAFAFA] border border-[#18181B] flex flex-col gap-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 bg-[#18181B] text-white">
+                          CHAR #{idx + 1}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveCharacter(char.id)}
@@ -819,43 +933,50 @@ export function App() {
                         >
                           {t.removeChar}
                         </button>
-                      )}
-                    </div>
+                      </div>
 
-                    <div>
-                      <label className="block text-[10px] font-mono uppercase">{t.charName}</label>
-                      <input
-                        type="text"
-                        value={char.name}
-                        onChange={(e) => handleUpdateCharacter(char.id, 'name', e.target.value)}
-                        className="w-full text-xs font-bold px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase">
+                          {t.charName}
+                        </label>
+                        <input
+                          type="text"
+                          value={char.name}
+                          onChange={(e) => handleUpdateCharacter(char.id, 'name', e.target.value)}
+                          placeholder={t.charNamePlaceholder}
+                          className="w-full text-xs font-bold px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-[10px] font-mono uppercase">{t.charRole}</label>
-                      <input
-                        type="text"
-                        value={char.role}
-                        onChange={(e) => handleUpdateCharacter(char.id, 'role', e.target.value)}
-                        className="w-full text-xs px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase">
+                          {t.charRole}
+                        </label>
+                        <input
+                          type="text"
+                          value={char.role}
+                          onChange={(e) => handleUpdateCharacter(char.id, 'role', e.target.value)}
+                          placeholder={t.charRolePlaceholder}
+                          className="w-full text-xs px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-[10px] font-mono uppercase">
-                        {t.charTraits}
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={char.traits}
-                        onChange={(e) => handleUpdateCharacter(char.id, 'traits', e.target.value)}
-                        className="w-full text-xs leading-snug px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                      />
+                      <div>
+                        <label className="block text-[10px] font-mono uppercase">
+                          {t.charTraits}
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={char.traits}
+                          onChange={(e) => handleUpdateCharacter(char.id, 'traits', e.target.value)}
+                          placeholder={t.charTraitsPlaceholder}
+                          className="w-full text-xs leading-snug px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -1064,6 +1185,7 @@ export function App() {
                     rows={2}
                     value={block.event}
                     onChange={(e) => handleUpdateBlock(block.id, 'event', e.target.value)}
+                    placeholder={t.sceneEventPlaceholder}
                     className="w-full text-xs leading-snug px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
                   />
                 </div>
@@ -1073,8 +1195,9 @@ export function App() {
                   <span className="text-[9px] font-mono font-bold uppercase text-[#18181B]/75 mr-0.5">
                     {t.charactersInScene}:
                   </span>
-                  {worldLock.characters.map((char) => {
+                  {worldLock.characters.map((char, charIdx) => {
                     const checked = block.characterIds.includes(char.id);
+                    const displayCharName = char.name.trim() || `CHAR #${charIdx + 1}`;
                     return (
                       <label
                         key={char.id}
@@ -1089,7 +1212,7 @@ export function App() {
                           className="sr-only"
                         />
                         <span>{checked ? '☑' : '☐'}</span>
-                        <span>{char.name}</span>
+                        <span>{displayCharName}</span>
                       </label>
                     );
                   })}
@@ -1136,387 +1259,428 @@ export function App() {
               </label>
             </div>
 
-            {/* ページ切り替えタブバー (Page 1 (KI) ~ Page 4 (KETSU) + All Pages) */}
-            <div className="flex flex-wrap items-center gap-1 pt-0.5">
-              {storyboard.pages.map((p, idx) => {
-                const isActive = activePageTab === idx;
-                return (
-                  <button
-                    key={`tab-page-${p.pageNumber}-${idx}`}
-                    type="button"
-                    onClick={() => setActivePageTab(idx)}
-                    className={`text-[11px] font-mono font-bold uppercase px-2.5 py-1 border border-[#18181B] transition cursor-pointer ${
-                      isActive
-                        ? 'bg-[#2563EB] text-white shadow-[2px_2px_0px_#18181B]'
-                        : 'bg-[#FAFAFA] text-[#18181B] hover:bg-[#18181B]/5'
-                    }`}
-                  >
-                    Page {p.pageNumber} ({getBlockShortLabel(p.blockType, lang)})
-                  </button>
-                );
-              })}
+            {/* ページ切り替えタブバー (ページが存在する場合のみ表示) */}
+            {storyboard.pages.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                {storyboard.pages.map((p, idx) => {
+                  const isActive = activePageTab === idx;
+                  return (
+                    <button
+                      key={`tab-page-${p.pageNumber}-${idx}`}
+                      type="button"
+                      onClick={() => setActivePageTab(idx)}
+                      className={`text-[11px] font-mono font-bold uppercase px-2.5 py-1 border border-[#18181B] transition cursor-pointer ${
+                        isActive
+                          ? 'bg-[#2563EB] text-white shadow-[2px_2px_0px_#18181B]'
+                          : 'bg-[#FAFAFA] text-[#18181B] hover:bg-[#18181B]/5'
+                      }`}
+                    >
+                      Page {p.pageNumber} ({getBlockShortLabel(p.blockType, lang)})
+                    </button>
+                  );
+                })}
 
-              <button
-                type="button"
-                onClick={() => setActivePageTab('all')}
-                className={`text-[11px] font-mono font-bold uppercase px-2.5 py-1 border border-[#18181B] transition cursor-pointer ml-auto ${
-                  activePageTab === 'all'
-                    ? 'bg-[#18181B] text-white shadow-[2px_2px_0px_#2563EB]'
-                    : 'bg-[#FAFAFA] text-[#18181B] hover:bg-[#18181B]/5'
-                }`}
-              >
-                {t.allPages} ({storyboard.pages.length})
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setActivePageTab('all')}
+                  className={`text-[11px] font-mono font-bold uppercase px-2.5 py-1 border border-[#18181B] transition cursor-pointer ml-auto ${
+                    activePageTab === 'all'
+                      ? 'bg-[#18181B] text-white shadow-[2px_2px_0px_#2563EB]'
+                      : 'bg-[#FAFAFA] text-[#18181B] hover:bg-[#18181B]/5'
+                  }`}
+                >
+                  {t.allPages} ({storyboard.pages.length})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 右カラム独立スクロール領域 */}
           <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3">
-            {/* Diff モードがONで、まだ再生成を行っていない場合の案内バナー */}
-            {showDiff && !previousStoryboard && (
-              <div className="p-2.5 bg-[#FAFAFA] border-2 border-[#2563EB] text-xs font-mono">
-                <strong className="text-[#2563EB] uppercase block mb-0.5">
-                  {t.diffWaitingTitle}
-                </strong>
-                {t.diffWaitingBody}
+            {/* 新規作成（ページが空）の場合の初期ガイダンス表示 */}
+            {storyboard.pages.length === 0 ? (
+              <div className="my-auto p-6 bg-[#FAFAFA] border-2 border-dashed border-[#18181B] text-center flex flex-col items-center gap-3">
+                <div className="w-10 h-10 bg-[#2563EB] text-white border-2 border-[#18181B] flex items-center justify-center font-mono font-black text-lg">
+                  ✎
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-wider">
+                  {t.emptyViewerTitle}
+                </h3>
+                <p className="text-xs leading-relaxed text-[#18181B]/80 max-w-md">
+                  {t.emptyViewerBody}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={handleGenerateStoryboard}
+                    disabled={isGenerating}
+                    className="text-xs font-bold uppercase px-3 py-1.5 bg-[#2563EB] text-white border-2 border-[#18181B] hover:opacity-95 cursor-pointer"
+                  >
+                    {isGenerating ? t.generatingBtn : t.generateBtn}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetToPreset}
+                    className="text-xs font-bold uppercase px-3 py-1.5 bg-[#FFFFFF] text-[#18181B] border-2 border-[#18181B] hover:bg-[#FAFAFA] cursor-pointer"
+                  >
+                    {t.resetPreset}
+                  </button>
+                </div>
               </div>
-            )}
-
-            {/* 選択中のページ（または全ページ）の階層カード表示 */}
-            {visiblePageEntries.map(({ page, pageIndex }) => {
-              const prevPage = previousStoryboard?.pages[pageIndex];
-              const tensionChanged =
-                prevPage !== undefined && prevPage.appliedTension !== page.appliedTension;
-              const panelCountChanged =
-                prevPage !== undefined && prevPage.panels.length !== page.panels.length;
-
-              return (
-                <div
-                  key={`page-${page.pageNumber}-${pageIndex}`}
-                  className="border-2 border-[#18181B] bg-[#FAFAFA] p-2.5 flex flex-col gap-2"
-                >
-                  {/* ページヘッダー */}
-                  <div className="bg-[#18181B] text-white px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase tracking-wider">
-                        Page {page.pageNumber} [{getBlockShortLabel(page.blockType, lang)}] —
-                        Tension: {page.appliedTension}
-                      </span>
-                      {showDiff && prevPage && tensionChanged && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[#2563EB] text-white">
-                          Before: {prevPage.appliedTension} → After: {page.appliedTension}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[11px] font-mono">
-                      <span>
-                        {page.panels.length} {t.panelsUnit}
-                      </span>
-                      {showDiff && prevPage && panelCountChanged && (
-                        <span className="px-1.5 py-0.5 bg-[#2563EB] text-white font-bold">
-                          Δ {prevPage.panels.length} → {page.panels.length} {t.panelsUnit}
-                        </span>
-                      )}
-                    </div>
+            ) : (
+              <>
+                {/* Diff モードがONで、まだ再生成を行っていない場合の案内バナー */}
+                {showDiff && !previousStoryboard && (
+                  <div className="p-2.5 bg-[#FAFAFA] border-2 border-[#2563EB] text-xs font-mono">
+                    <strong className="text-[#2563EB] uppercase block mb-0.5">
+                      {t.diffWaitingTitle}
+                    </strong>
+                    {t.diffWaitingBody}
                   </div>
+                )}
 
-                  {/* Page Summary (インライン編集可能) */}
-                  <div className="flex items-center gap-2">
-                    <span className="shrink-0 text-[10px] font-mono font-bold uppercase">
-                      {t.pageSummaryLabel}
-                    </span>
-                    <input
-                      type="text"
-                      value={page.pageSummary}
-                      onChange={(e) => handleUpdatePageSummary(pageIndex, e.target.value)}
-                      className="w-full text-xs px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                    />
-                  </div>
+                {/* 選択中のページ（または全ページ）の階層カード表示 */}
+                {visiblePageEntries.map(({ page, pageIndex }) => {
+                  const prevPage = previousStoryboard?.pages[pageIndex];
+                  const tensionChanged =
+                    prevPage !== undefined && prevPage.appliedTension !== page.appliedTension;
+                  const panelCountChanged =
+                    prevPage !== undefined && prevPage.panels.length !== page.panels.length;
 
-                  {/* Diff View ON かつ前回データがある場合：Before / After 比較サマリー */}
-                  {showDiff && prevPage && (
-                    <div className="p-2 bg-[#FFFFFF] border-2 border-[#2563EB] flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between border-b border-[#18181B]/20 pb-1">
-                        <span className="text-[10px] font-mono font-bold uppercase text-[#2563EB]">
-                          {t.diffBannerTitle} (Page {page.pageNumber})
-                        </span>
-                        <span className="text-[10px] font-mono">
-                          Tension: {prevPage.appliedTension} → {page.appliedTension} |{' '}
-                          {t.panelsUnit}: {prevPage.panels.length} → {page.panels.length}
-                        </span>
+                  return (
+                    <div
+                      key={`page-${page.pageNumber}-${pageIndex}`}
+                      className="border-2 border-[#18181B] bg-[#FAFAFA] p-2.5 flex flex-col gap-2"
+                    >
+                      {/* ページヘッダー */}
+                      <div className="bg-[#18181B] text-white px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase tracking-wider">
+                            Page {page.pageNumber} [{getBlockShortLabel(page.blockType, lang)}] —
+                            Tension: {page.appliedTension}
+                          </span>
+                          {showDiff && prevPage && tensionChanged && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[#2563EB] text-white">
+                              Before: {prevPage.appliedTension} → After: {page.appliedTension}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[11px] font-mono">
+                          <span>
+                            {page.panels.length} {t.panelsUnit}
+                          </span>
+                          {showDiff && prevPage && panelCountChanged && (
+                            <span className="px-1.5 py-0.5 bg-[#2563EB] text-white font-bold">
+                              Δ {prevPage.panels.length} → {page.panels.length} {t.panelsUnit}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                        {/* Before Column */}
-                        <div className="p-1.5 bg-[#FAFAFA] border border-[#18181B]">
-                          <div className="font-mono font-bold uppercase text-[10px] mb-1 pb-0.5 border-b border-[#18181B]">
-                            BEFORE (Tension {prevPage.appliedTension} / {prevPage.panels.length}{' '}
-                            {t.panelsUnit})
+                      {/* Page Summary (インライン編集可能) */}
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0 text-[10px] font-mono font-bold uppercase">
+                          {t.pageSummaryLabel}
+                        </span>
+                        <input
+                          type="text"
+                          value={page.pageSummary}
+                          onChange={(e) => handleUpdatePageSummary(pageIndex, e.target.value)}
+                          className="w-full text-xs px-2 py-1 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                        />
+                      </div>
+
+                      {/* Diff View ON かつ前回データがある場合：Before / After 比較サマリー */}
+                      {showDiff && prevPage && (
+                        <div className="p-2 bg-[#FFFFFF] border-2 border-[#2563EB] flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between border-b border-[#18181B]/20 pb-1">
+                            <span className="text-[10px] font-mono font-bold uppercase text-[#2563EB]">
+                              {t.diffBannerTitle} (Page {page.pageNumber})
+                            </span>
+                            <span className="text-[10px] font-mono">
+                              Tension: {prevPage.appliedTension} → {page.appliedTension} |{' '}
+                              {t.panelsUnit}: {prevPage.panels.length} → {page.panels.length}
+                            </span>
                           </div>
-                          <div className="flex flex-col gap-1">
-                            {prevPage.panels.map((bPanel) => (
-                              <div
-                                key={`before-p-${bPanel.panelNumber}`}
-                                className="p-1.5 bg-[#FFFFFF] border border-[#18181B]/60 text-[11px]"
-                              >
-                                <div className="font-mono font-bold flex items-center justify-between">
-                                  <span>Panel #{bPanel.panelNumber}</span>
-                                  <span className="uppercase px-1 bg-[#FAFAFA] border border-[#18181B] text-[10px]">
-                                    {bPanel.size}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] font-mono text-[#18181B]/80">
-                                  {t.cameraAngle}: {bPanel.camera}
-                                </div>
-                                <div className="mt-0.5 line-clamp-2 text-[11px]">
-                                  {bPanel.composition}
-                                </div>
-                                {bPanel.dialogues.map((d, di) => (
-                                  <div key={di} className="text-[10px] font-mono mt-0.5">
-                                    <strong>{d.character}:</strong> &ldquo;{d.text}&rdquo;
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                            {/* Before Column */}
+                            <div className="p-1.5 bg-[#FAFAFA] border border-[#18181B]">
+                              <div className="font-mono font-bold uppercase text-[10px] mb-1 pb-0.5 border-b border-[#18181B]">
+                                BEFORE (Tension {prevPage.appliedTension} / {prevPage.panels.length}{' '}
+                                {t.panelsUnit})
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {prevPage.panels.map((bPanel) => (
+                                  <div
+                                    key={`before-p-${bPanel.panelNumber}`}
+                                    className="p-1.5 bg-[#FFFFFF] border border-[#18181B]/60 text-[11px]"
+                                  >
+                                    <div className="font-mono font-bold flex items-center justify-between">
+                                      <span>Panel #{bPanel.panelNumber}</span>
+                                      <span className="uppercase px-1 bg-[#FAFAFA] border border-[#18181B] text-[10px]">
+                                        {bPanel.size}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] font-mono text-[#18181B]/80">
+                                      {t.cameraAngle}: {bPanel.camera}
+                                    </div>
+                                    <div className="mt-0.5 line-clamp-2 text-[11px]">
+                                      {bPanel.composition}
+                                    </div>
+                                    {bPanel.dialogues.map((d, di) => (
+                                      <div key={di} className="text-[10px] font-mono mt-0.5">
+                                        <strong>{d.character}:</strong> &ldquo;{d.text}&rdquo;
+                                      </div>
+                                    ))}
                                   </div>
                                 ))}
                               </div>
-                            ))}
-                          </div>
-                        </div>
+                            </div>
 
-                        {/* After Column */}
-                        <div className="p-1.5 bg-[#FAFAFA] border-2 border-[#2563EB]">
-                          <div className="font-mono font-bold uppercase text-[10px] text-[#2563EB] mb-1 pb-0.5 border-b border-[#2563EB]">
-                            AFTER (Tension {page.appliedTension} / {page.panels.length}{' '}
-                            {t.panelsUnit})
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            {page.panels.map((aPanel, idx) => {
-                              const bPanel = prevPage.panels[idx];
-                              const isChanged =
-                                !bPanel ||
-                                bPanel.size !== aPanel.size ||
-                                bPanel.camera !== aPanel.camera ||
-                                bPanel.composition !== aPanel.composition;
-                              return (
-                                <div
-                                  key={`after-p-${aPanel.panelNumber}`}
-                                  className={`p-1.5 bg-[#FFFFFF] border text-[11px] ${
-                                    isChanged ? 'border-[#2563EB]' : 'border-[#18181B]/60'
-                                  }`}
-                                >
-                                  <div className="font-mono font-bold flex items-center justify-between">
-                                    <span>
-                                      Panel #{aPanel.panelNumber}{' '}
-                                      {isChanged && (
-                                        <span className="text-[9px] text-[#2563EB] uppercase">
-                                          [Updated]
+                            {/* After Column */}
+                            <div className="p-1.5 bg-[#FAFAFA] border-2 border-[#2563EB]">
+                              <div className="font-mono font-bold uppercase text-[10px] text-[#2563EB] mb-1 pb-0.5 border-b border-[#2563EB]">
+                                AFTER (Tension {page.appliedTension} / {page.panels.length}{' '}
+                                {t.panelsUnit})
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                {page.panels.map((aPanel, idx) => {
+                                  const bPanel = prevPage.panels[idx];
+                                  const isChanged =
+                                    !bPanel ||
+                                    bPanel.size !== aPanel.size ||
+                                    bPanel.camera !== aPanel.camera ||
+                                    bPanel.composition !== aPanel.composition;
+                                  return (
+                                    <div
+                                      key={`after-p-${aPanel.panelNumber}`}
+                                      className={`p-1.5 bg-[#FFFFFF] border text-[11px] ${
+                                        isChanged ? 'border-[#2563EB]' : 'border-[#18181B]/60'
+                                      }`}
+                                    >
+                                      <div className="font-mono font-bold flex items-center justify-between">
+                                        <span>
+                                          Panel #{aPanel.panelNumber}{' '}
+                                          {isChanged && (
+                                            <span className="text-[9px] text-[#2563EB] uppercase">
+                                              [Updated]
+                                            </span>
+                                          )}
                                         </span>
-                                      )}
-                                    </span>
-                                    <span className="uppercase px-1 bg-[#2563EB] text-white text-[10px]">
-                                      {aPanel.size}
-                                    </span>
-                                  </div>
-                                  <div className="text-[10px] font-mono text-[#2563EB]">
-                                    {t.cameraAngle}: {aPanel.camera}
-                                  </div>
-                                  <div className="mt-0.5 line-clamp-2 text-[11px]">
-                                    {aPanel.composition}
-                                  </div>
-                                  {aPanel.dialogues.map((d, di) => (
-                                    <div key={di} className="text-[10px] font-mono mt-0.5">
-                                      <strong>{d.character}:</strong> &ldquo;{d.text}&rdquo;
+                                        <span className="uppercase px-1 bg-[#2563EB] text-white text-[10px]">
+                                          {aPanel.size}
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] font-mono text-[#2563EB]">
+                                        {t.cameraAngle}: {aPanel.camera}
+                                      </div>
+                                      <div className="mt-0.5 line-clamp-2 text-[11px]">
+                                        {aPanel.composition}
+                                      </div>
+                                      {aPanel.dialogues.map((d, di) => (
+                                        <div key={di} className="text-[10px] font-mono mt-0.5">
+                                          <strong>{d.character}:</strong> &ldquo;{d.text}&rdquo;
+                                        </div>
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
-                              );
-                            })}
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      )}
+
+                      {/* 各コマ（PanelBrief）の設計図カードリスト（1ページ4コマが一覧しやすいコンパクト設計） */}
+                      <div className="flex flex-col gap-2">
+                        {page.panels.map((panel, panelIndex) => {
+                          const prevPanel = prevPage?.panels[panelIndex];
+                          const sizeChanged = prevPanel && prevPanel.size !== panel.size;
+                          const cameraChanged = prevPanel && prevPanel.camera !== panel.camera;
+
+                          // コマサイズに応じた設計図風の枠線スタイル強調
+                          const sizeFrameStyle =
+                            panel.size === 'wide' || panel.size === 'large'
+                              ? 'border-2 border-[#18181B] shadow-[2px_2px_0px_#2563EB]'
+                              : 'border border-[#18181B]';
+
+                          return (
+                            <div
+                              key={`panel-${page.pageNumber}-${panel.panelNumber}-${panelIndex}`}
+                              className={`bg-[#FFFFFF] p-2 flex flex-col gap-1.5 ${sizeFrameStyle}`}
+                            >
+                              {/* コマヘッダー：Panel # と Size Badge + CAMERA ANGLE を1行に統合 */}
+                              <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-[#18181B]/30 pb-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] font-mono font-black uppercase px-1.5 py-0.5 bg-[#18181B] text-white">
+                                    Panel #{panel.panelNumber}
+                                  </span>
+                                  <select
+                                    value={panel.size}
+                                    onChange={(e) =>
+                                      handleUpdatePanel(
+                                        pageIndex,
+                                        panelIndex,
+                                        'size',
+                                        e.target.value as PanelBrief['size']
+                                      )
+                                    }
+                                    className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 border border-[#18181B] cursor-pointer ${
+                                      panel.size === 'large' || panel.size === 'wide'
+                                        ? 'bg-[#2563EB] text-white'
+                                        : 'bg-[#FAFAFA] text-[#18181B]'
+                                    }`}
+                                  >
+                                    <option value="small">SMALL</option>
+                                    <option value="medium">MEDIUM</option>
+                                    <option value="large">LARGE</option>
+                                    <option value="wide">WIDE</option>
+                                  </select>
+                                  {showDiff && sizeChanged && (
+                                    <span className="text-[10px] font-mono font-bold text-[#2563EB]">
+                                      ({prevPanel.size.toUpperCase()}→{panel.size.toUpperCase()})
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* CAMERA ANGLE インライン入力 */}
+                                <div className="flex items-center gap-1 flex-1 min-w-[200px] justify-end">
+                                  <span className="text-[10px] font-mono font-bold uppercase text-[#18181B]/75 shrink-0">
+                                    {t.cameraAngle}:
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={panel.camera}
+                                    onChange={(e) =>
+                                      handleUpdatePanel(
+                                        pageIndex,
+                                        panelIndex,
+                                        'camera',
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full max-w-[240px] text-[11px] font-mono px-1.5 py-0.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                                  />
+                                  {showDiff && cameraChanged && (
+                                    <span
+                                      className="text-[9px] font-mono text-[#2563EB] shrink-0"
+                                      title={`Before: ${prevPanel.camera}`}
+                                    >
+                                      *CamΔ
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* COMPOSITION & ACTION (構図・キャラの演技指示) インライン編集 */}
+                              <div>
+                                <label className="block text-[9px] font-mono font-bold uppercase text-[#18181B]/75 mb-0.5">
+                                  {t.compositionAction}
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  value={panel.composition}
+                                  onChange={(e) =>
+                                    handleUpdatePanel(
+                                      pageIndex,
+                                      panelIndex,
+                                      'composition',
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full text-xs leading-snug px-2 py-1 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                                />
+                              </div>
+
+                              {/* DIALOGUES & SFX (セリフ・効果音) インライン編集 */}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-mono font-bold uppercase text-[#18181B]/75">
+                                    {t.dialoguesSfx} ({panel.dialogues.length})
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddDialogue(pageIndex, panelIndex)}
+                                    className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 border border-[#18181B] bg-[#FAFAFA] hover:bg-[#2563EB] hover:text-white transition cursor-pointer"
+                                  >
+                                    {t.addLine}
+                                  </button>
+                                </div>
+
+                                {panel.dialogues.map((dlg, dlgIndex) => (
+                                  <div
+                                    key={`dlg-${dlgIndex}`}
+                                    className="grid grid-cols-12 gap-1 items-center"
+                                  >
+                                    <input
+                                      type="text"
+                                      value={dlg.character}
+                                      onChange={(e) =>
+                                        handleUpdateDialogue(
+                                          pageIndex,
+                                          panelIndex,
+                                          dlgIndex,
+                                          'character',
+                                          e.target.value
+                                        )
+                                      }
+                                      className="col-span-3 text-[11px] font-bold px-1.5 py-0.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                                    />
+                                    <select
+                                      value={dlg.type}
+                                      onChange={(e) =>
+                                        handleUpdateDialogue(
+                                          pageIndex,
+                                          panelIndex,
+                                          dlgIndex,
+                                          'type',
+                                          e.target.value as Dialogue['type']
+                                        )
+                                      }
+                                      className="col-span-2 text-[10px] font-mono uppercase px-1 py-0.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                                    >
+                                      <option value="speech">{t.speechType}</option>
+                                      <option value="monologue">{t.monoType}</option>
+                                      <option value="sfx">{t.sfxType}</option>
+                                    </select>
+                                    <input
+                                      type="text"
+                                      value={dlg.text}
+                                      onChange={(e) =>
+                                        handleUpdateDialogue(
+                                          pageIndex,
+                                          panelIndex,
+                                          dlgIndex,
+                                          'text',
+                                          e.target.value
+                                        )
+                                      }
+                                      className="col-span-6 text-[11px] px-1.5 py-0.5 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveDialogue(pageIndex, panelIndex, dlgIndex)
+                                      }
+                                      title="Remove Dialogue Line"
+                                      className="col-span-1 text-[11px] font-mono border border-[#18181B] py-0.5 bg-[#FAFAFA] hover:bg-[#18181B] hover:text-white transition cursor-pointer"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  )}
-
-                  {/* 各コマ（PanelBrief）の設計図カードリスト（1ページ4コマが一覧しやすいコンパクト設計） */}
-                  <div className="flex flex-col gap-2">
-                    {page.panels.map((panel, panelIndex) => {
-                      const prevPanel = prevPage?.panels[panelIndex];
-                      const sizeChanged = prevPanel && prevPanel.size !== panel.size;
-                      const cameraChanged = prevPanel && prevPanel.camera !== panel.camera;
-
-                      // コマサイズに応じた設計図風の枠線スタイル強調
-                      const sizeFrameStyle =
-                        panel.size === 'wide' || panel.size === 'large'
-                          ? 'border-2 border-[#18181B] shadow-[2px_2px_0px_#2563EB]'
-                          : 'border border-[#18181B]';
-
-                      return (
-                        <div
-                          key={`panel-${page.pageNumber}-${panel.panelNumber}-${panelIndex}`}
-                          className={`bg-[#FFFFFF] p-2 flex flex-col gap-1.5 ${sizeFrameStyle}`}
-                        >
-                          {/* コマヘッダー：Panel # と Size Badge + CAMERA ANGLE を1行に統合 */}
-                          <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-[#18181B]/30 pb-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] font-mono font-black uppercase px-1.5 py-0.5 bg-[#18181B] text-white">
-                                Panel #{panel.panelNumber}
-                              </span>
-                              <select
-                                value={panel.size}
-                                onChange={(e) =>
-                                  handleUpdatePanel(
-                                    pageIndex,
-                                    panelIndex,
-                                    'size',
-                                    e.target.value as PanelBrief['size']
-                                  )
-                                }
-                                className={`text-[10px] font-mono font-bold uppercase px-1.5 py-0.5 border border-[#18181B] cursor-pointer ${
-                                  panel.size === 'large' || panel.size === 'wide'
-                                    ? 'bg-[#2563EB] text-white'
-                                    : 'bg-[#FAFAFA] text-[#18181B]'
-                                }`}
-                              >
-                                <option value="small">SMALL</option>
-                                <option value="medium">MEDIUM</option>
-                                <option value="large">LARGE</option>
-                                <option value="wide">WIDE</option>
-                              </select>
-                              {showDiff && sizeChanged && (
-                                <span className="text-[10px] font-mono font-bold text-[#2563EB]">
-                                  ({prevPanel.size.toUpperCase()}→{panel.size.toUpperCase()})
-                                </span>
-                              )}
-                            </div>
-
-                            {/* CAMERA ANGLE インライン入力 */}
-                            <div className="flex items-center gap-1 flex-1 min-w-[200px] justify-end">
-                              <span className="text-[10px] font-mono font-bold uppercase text-[#18181B]/75 shrink-0">
-                                {t.cameraAngle}:
-                              </span>
-                              <input
-                                type="text"
-                                value={panel.camera}
-                                onChange={(e) =>
-                                  handleUpdatePanel(pageIndex, panelIndex, 'camera', e.target.value)
-                                }
-                                className="w-full max-w-[240px] text-[11px] font-mono px-1.5 py-0.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                              />
-                              {showDiff && cameraChanged && (
-                                <span
-                                  className="text-[9px] font-mono text-[#2563EB] shrink-0"
-                                  title={`Before: ${prevPanel.camera}`}
-                                >
-                                  *CamΔ
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* COMPOSITION & ACTION (構図・キャラの演技指示) インライン編集 */}
-                          <div>
-                            <label className="block text-[9px] font-mono font-bold uppercase text-[#18181B]/75 mb-0.5">
-                              {t.compositionAction}
-                            </label>
-                            <textarea
-                              rows={2}
-                              value={panel.composition}
-                              onChange={(e) =>
-                                handleUpdatePanel(
-                                  pageIndex,
-                                  panelIndex,
-                                  'composition',
-                                  e.target.value
-                                )
-                              }
-                              className="w-full text-xs leading-snug px-2 py-1 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                            />
-                          </div>
-
-                          {/* DIALOGUES & SFX (セリフ・効果音) インライン編集 */}
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-mono font-bold uppercase text-[#18181B]/75">
-                                {t.dialoguesSfx} ({panel.dialogues.length})
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleAddDialogue(pageIndex, panelIndex)}
-                                className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 border border-[#18181B] bg-[#FAFAFA] hover:bg-[#2563EB] hover:text-white transition cursor-pointer"
-                              >
-                                {t.addLine}
-                              </button>
-                            </div>
-
-                            {panel.dialogues.map((dlg, dlgIndex) => (
-                              <div
-                                key={`dlg-${dlgIndex}`}
-                                className="grid grid-cols-12 gap-1 items-center"
-                              >
-                                <input
-                                  type="text"
-                                  value={dlg.character}
-                                  onChange={(e) =>
-                                    handleUpdateDialogue(
-                                      pageIndex,
-                                      panelIndex,
-                                      dlgIndex,
-                                      'character',
-                                      e.target.value
-                                    )
-                                  }
-                                  className="col-span-3 text-[11px] font-bold px-1.5 py-0.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                                />
-                                <select
-                                  value={dlg.type}
-                                  onChange={(e) =>
-                                    handleUpdateDialogue(
-                                      pageIndex,
-                                      panelIndex,
-                                      dlgIndex,
-                                      'type',
-                                      e.target.value as Dialogue['type']
-                                    )
-                                  }
-                                  className="col-span-2 text-[10px] font-mono uppercase px-1 py-0.5 bg-[#FAFAFA] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                                >
-                                  <option value="speech">{t.speechType}</option>
-                                  <option value="monologue">{t.monoType}</option>
-                                  <option value="sfx">{t.sfxType}</option>
-                                </select>
-                                <input
-                                  type="text"
-                                  value={dlg.text}
-                                  onChange={(e) =>
-                                    handleUpdateDialogue(
-                                      pageIndex,
-                                      panelIndex,
-                                      dlgIndex,
-                                      'text',
-                                      e.target.value
-                                    )
-                                  }
-                                  className="col-span-6 text-[11px] px-1.5 py-0.5 bg-[#FFFFFF] border border-[#18181B] focus:outline-none focus:border-[#2563EB]"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleRemoveDialogue(pageIndex, panelIndex, dlgIndex)
-                                  }
-                                  title="Remove Dialogue Line"
-                                  className="col-span-1 text-[11px] font-mono border border-[#18181B] py-0.5 bg-[#FAFAFA] hover:bg-[#18181B] hover:text-white transition cursor-pointer"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </>
+            )}
           </div>
         </section>
       </main>
